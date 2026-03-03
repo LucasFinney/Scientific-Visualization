@@ -5,7 +5,6 @@ A collection of scripts for programmatic graphs and scientific visualizations, p
 Tools used: Python, Mathematica, and whatever else is relevant.
 
 ## hydrogen_orbitals.py
-====================
 Generates 2D cross-sectional plots of the electron probability density
 |ψ_nlm(x, 0, z)|² for hydrogen-like atoms.
 
