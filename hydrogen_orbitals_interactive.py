@@ -32,7 +32,7 @@ Dependencies
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, RadioButtons
+from matplotlib.widgets import Slider, RadioButtons, Button
 from scipy.special import factorial, genlaguerre, sph_harm
 
 # ── tuneable ─────────────────────────────────────────────────────────────────
@@ -158,8 +158,22 @@ s_Z = _make_slider([0.030, 0.540, 0.165, 0.030], 'Z',  1, 20, 1, step=1)
 _hdivider(0.513)
 _section(0.501, 'DISPLAY')
 
-# γ — brightness/gamma compression
-s_gm = _make_slider([0.030, 0.437, 0.165, 0.030], 'γ', 0.10, 1.0, 0.35)
+# γ — brightness/gamma compression  (shifted up slightly to make room for toggle)
+s_gm = _make_slider([0.030, 0.455, 0.165, 0.030], 'γ', 0.10, 1.0, 0.35)
+
+# auto-scale toggle — when OFF the domain is fixed at 5n²a₀ (Z=1 scale)
+# so increasing Z visibly compresses the orbital within the same frame.
+_auto_scale = True
+
+ax_btn = fig.add_axes([0.030, 0.416, 0.165, 0.026])
+ax_btn.set_facecolor('#1a1c2a')
+for sp in ax_btn.spines.values():
+    sp.set_edgecolor('#2a2d3e')
+
+btn_scale = Button(ax_btn, 'Auto-scale: ON',
+                   color='#1a1c2a', hovercolor='#22253a')
+btn_scale.label.set_color(ACCENT)
+btn_scale.label.set_fontsize(8.5)
 
 _hdivider(0.408)
 _section(0.396, 'COLORMAP')
@@ -246,7 +260,7 @@ def replot():
     gm = float(s_gm.val)
     cmap = radio.value_selected
 
-    extent = 5.0 * n**2 / Z    # a₀ — generous but compact
+    extent = 5.0 * n**2 / Z if _auto_scale else 5.0 * n**2
 
     prob = prob_density_xz(n, l, m, extent, Z=Z)
     peak = prob.max()
@@ -301,12 +315,26 @@ def on_any_changed(val):
     replot()
 
 
+def on_toggle_scale(event):
+    """Switch between auto-scaling the domain with Z and a fixed domain."""
+    global _auto_scale
+    _auto_scale = not _auto_scale
+    if _auto_scale:
+        btn_scale.label.set_text('Auto-scale: ON')
+        btn_scale.label.set_color(ACCENT)
+    else:
+        btn_scale.label.set_text('Fixed domain: ON')
+        btn_scale.label.set_color('#e0a050')  # warm colour flags non-default
+    replot()
+
+
 s_n.on_changed(on_n_changed)
 s_l.on_changed(on_l_changed)
 s_m.on_changed(on_any_changed)
 s_Z.on_changed(on_any_changed)
 s_gm.on_changed(on_any_changed)
 radio.on_clicked(on_any_changed)
+btn_scale.on_clicked(on_toggle_scale)
 
 replot()      # draw the initial 1s orbital
 plt.show()
