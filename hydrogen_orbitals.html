@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hydrogen-like Orbital Viewer</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #0f1017;
+  color: #d8ddf0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+#panel {
+  width: 260px;
+  min-width: 260px;
+  background: #12131a;
+  border-right: 1px solid #1e2030;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px 16px;
+  overflow-y: auto;
+  gap: 0;
+}
+
+#plot-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-width: 0;
+}
+
+canvas { display: block; }
+
+/* ── Sidebar typography ────────────────────────────────────────────────── */
+h1 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #7eb8f7;
+  font-family: monospace;
+  line-height: 1.5;
+  margin-bottom: 3px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: #505570;
+  margin-bottom: 14px;
+}
+
+.section {
+  font-size: 9px;
+  font-weight: 700;
+  color: #505570;
+  font-family: monospace;
+  letter-spacing: 1.2px;
+  margin: 14px 0 8px;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #1e2030;
+  margin: 4px 0;
+}
+
+/* ── Slider controls ──────────────────────────────────────────────────── */
+.ctrl { margin-bottom: 12px; }
+
+.ctrl label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+  color: #c0c8e0;
+}
+
+.ctrl label .name  { font-size: 13px; }
+.ctrl label .range { font-size: 10px; color: #404560; font-family: monospace; }
+.ctrl label .val   { font-size: 13px; color: #7eb8f7; font-family: monospace; min-width: 30px; text-align: right; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #1e2a42;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #7eb8f7;
+  border: 2px solid #0f1017;
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #7eb8f7;
+  border: 2px solid #0f1017;
+  cursor: pointer;
+  border: none;
+}
+input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
+input[type=range]:disabled::-webkit-slider-thumb { cursor: not-allowed; }
+
+/* ── Colormap buttons ─────────────────────────────────────────────────── */
+.cmap-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.cmap-btn {
+  background: #1a1c2c;
+  color: #8090b0;
+  border: 1px solid #252840;
+  border-radius: 4px;
+  padding: 6px 4px;
+  font-size: 11px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  text-align: center;
+}
+.cmap-btn:hover  { background: #22253a; color: #c8d0e8; }
+.cmap-btn.active { background: #1a3258; color: #7eb8f7; border-color: #2c5080; }
+
+/* ── State readout ────────────────────────────────────────────────────── */
+#state {
+  margin-top: auto;
+  padding-top: 18px;
+  text-align: center;
+}
+#state-label {
+  font-size: 9px;
+  color: #505570;
+  letter-spacing: 1px;
+  font-family: monospace;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+#state-text {
+  font-size: 17px;
+  font-weight: 700;
+  color: #7eb8f7;
+  font-family: monospace;
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- ── Control panel ────────────────────────────────────────────────── -->
+  <aside id="panel">
+    <h1>Hydrogen-like<br>Orbital Viewer</h1>
+    <div class="subtitle">|ψ<sub>nℓm</sub>|² &mdash; xz cross-section</div>
+
+    <hr>
+    <div class="section">QUANTUM NUMBERS</div>
+
+    <div class="ctrl">
+      <label>
+        <span class="name">n</span>
+        <span class="range">1 – 4</span>
+        <span class="val" id="n-val">1</span>
+      </label>
+      <input type="range" id="n-slider" min="1" max="4" value="1" step="1">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="name">ℓ</span>
+        <span class="range" id="l-range">0 – 0</span>
+        <span class="val" id="l-val">0</span>
+      </label>
+      <input type="range" id="l-slider" min="0" max="0" value="0" step="1">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="name">m</span>
+        <span class="range" id="m-range">0 – 0</span>
+        <span class="val" id="m-val">0</span>
+      </label>
+      <input type="range" id="m-slider" min="0" max="0" value="0" step="1">
+    </div>
+
+    <hr>
+    <div class="section">ATOM</div>
+    <div class="ctrl">
+      <label>
+        <span class="name">Z</span>
+        <span class="range">1 – 20</span>
+        <span class="val" id="Z-val">1</span>
+      </label>
+      <input type="range" id="Z-slider" min="1" max="20" value="1" step="1">
+    </div>
+
+    <hr>
+    <div class="section">DISPLAY</div>
+    <div class="ctrl">
+      <label>
+        <span class="name">&#947;</span>
+        <span class="range">0.10 – 1.00</span>
+        <span class="val" id="gamma-val">0.35</span>
+      </label>
+      <input type="range" id="gamma-slider" min="0.10" max="1.00" value="0.35" step="0.05">
+    </div>
+
+    <div class="section">COLORMAP</div>
+    <div class="cmap-grid">
+      <button class="cmap-btn active" data-cmap="inferno">inferno</button>
+      <button class="cmap-btn"        data-cmap="plasma">plasma</button>
+      <button class="cmap-btn"        data-cmap="viridis">viridis</button>
+      <button class="cmap-btn"        data-cmap="magma">magma</button>
+      <button class="cmap-btn"        data-cmap="hot">hot</button>
+    </div>
+
+    <div id="state">
+      <div id="state-label">CURRENT ORBITAL</div>
+      <div id="state-text">1s &nbsp; m = 0</div>
+    </div>
+  </aside>
+
+  <!-- ── Plot canvas ──────────────────────────────────────────────────── -->
+  <main id="plot-area">
+    <canvas id="canvas"></canvas>
+  </main>
+
+</div><!-- #app -->
+
+<script>
+'use strict';
+
+// ── Precomputed factorials (0! … 12!) ─────────────────────────────────────
+const FACT = (() => {
+  const f = [1];
+  for (let i = 1; i <= 12; i++) f.push(f[i-1] * i);
+  return f;
+})();
+
+const SUBSHELL = ['s','p','d','f','g'];
+
+// ── Physics ───────────────────────────────────────────────────────────────
+
+/**
+ * Generalised Laguerre polynomial L_p^alpha(x) via three-term recurrence.
+ * Used for the radial wavefunction where p = n-l-1, alpha = 2l+1.
+ */
+function laguerreL(p, alpha, x) {
+  if (p === 0) return 1;
+  if (p === 1) return 1 + alpha - x;
+  let L0 = 1, L1 = 1 + alpha - x;
+  for (let k = 1; k < p; k++) {
+    const L2 = ((2*k + 1 + alpha - x) * L1 - (k + alpha) * L0) / (k + 1);
+    L0 = L1;  L1 = L2;
+  }
+  return L1;
+}
+
+/**
+ * Associated Legendre polynomial P_l^m(x), m >= 0, x = cos(theta).
+ * Used inside |Y_l^m(theta, phi)|^2 = N_lm^2 * P_l^|m|(cos theta)^2.
+ */
+function assocLegendre(l, m, x) {
+  if (m > l) return 0;
+  const sinT = Math.sqrt(Math.max(0, 1 - x*x));
+  // Seed P_m^m
+  let Pmm = 1;
+  for (let i = 1; i <= m; i++) Pmm *= -(2*i - 1) * sinT;
+  if (l === m) return Pmm;
+  let Pmp1m = (2*m + 1) * x * Pmm;
+  if (l === m + 1) return Pmp1m;
+  // Recurrence for l > m+1
+  let Pll = 0;
+  for (let ll = m + 2; ll <= l; ll++) {
+    Pll = ((2*ll - 1) * x * Pmp1m - (ll + m - 1) * Pmm) / (ll - m);
+    Pmm = Pmp1m;  Pmp1m = Pll;
+  }
+  return Pll;
+}
+
+/**
+ * |psi_nlm(r, cosTheta)|^2 in atomic units (a0 = 1).
+ *
+ * Because |Y_l^m|^2 is phi-independent (the phi dependence is just e^{i m phi},
+ * whose modulus is 1), this is the same on every half-plane through the z-axis.
+ */
+function probDensity(n, l, m, Z, r, cosTheta) {
+  if (r < 1e-14) return 0;
+  const rho  = 2 * Z * r / n;
+  // Radial part
+  const Rnorm = Math.sqrt(
+    Math.pow(2*Z/n, 3) * FACT[n-l-1] / (2 * n * FACT[n+l])
+  );
+  const Lval = laguerreL(n-l-1, 2*l+1, rho);
+  const R    = Rnorm * Math.exp(-rho / 2) * Math.pow(rho, l) * Lval;
+  // Angular part  (|Y_l^m|^2, phi-independent)
+  const absm  = Math.abs(m);
+  const Ynorm2 = (2*l+1) / (4*Math.PI) * FACT[l-absm] / FACT[l+absm];
+  const P     = assocLegendre(l, absm, cosTheta);
+  return R*R * Ynorm2 * P*P;
+}
+
+// ── Colormaps ─────────────────────────────────────────────────────────────
+// Each map is 8 RGB control points sampled from the matplotlib colormaps.
+const CMAPS = {
+  inferno: [
+    [0,0,4],[38,12,77],[93,20,110],[152,32,110],
+    [204,68,76],[237,122,37],[251,185,17],[252,255,164]
+  ],
+  plasma: [
+    [13,8,135],[84,2,163],[139,10,165],[185,50,137],
+    [219,92,104],[244,136,73],[253,187,45],[240,249,33]
+  ],
+  viridis: [
+    [68,1,84],[72,40,120],[62,74,137],[49,104,142],
+    [38,130,142],[53,183,121],[109,206,89],[253,231,37]
+  ],
+  magma: [
+    [0,0,4],[42,12,87],[100,20,121],[162,41,120],
+    [210,71,111],[241,121,95],[249,176,110],[252,253,191]
+  ],
+  hot: [
+    [0,0,0],[80,0,0],[180,0,0],[255,0,0],
+    [255,100,0],[255,210,0],[255,255,80],[255,255,255]
+  ]
+};
+
+function sampleCmap(t, name) {
+  const stops = CMAPS[name];
+  const n = stops.length - 1;
+  const i = Math.min(Math.floor(t * n), n - 1);
+  const f = t * n - i;
+  const [r0,g0,b0] = stops[i], [r1,g1,b1] = stops[i+1];
+  return [
+    (r0 + f*(r1-r0) + 0.5) | 0,
+    (g0 + f*(g1-g0) + 0.5) | 0,
+    (b0 + f*(b1-b0) + 0.5) | 0,
+  ];
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+// Margins (px) around the plot image for axis labels & ticks
+const ML = 54, MR = 14, MT = 26, MB = 46;
+
+let activeCmap = 'inferno';
+
+function fmtTick(v) {
+  // Compact tick label: drop unnecessary decimal zeros
+  const s = parseFloat(v.toFixed(1));
+  return s.toString();
+}
+
+function render() {
+  const n  = +nSlider.value;
+  const l  = +lSlider.value;
+  const m  = +mSlider.value;
+  const Z  = +ZSlider.value;
+  const gm = +gammaSlider.value;
+
+  const W  = canvas.width,  H  = canvas.height;
+  const pw = W - ML - MR,   ph = H - MT - MB;
+  if (pw < 10 || ph < 10) return;
+
+  const extent = 5 * n * n / Z;   // half-width in a0
+
+  // ── First pass: compute raw probability on the pixel grid ─────────────
+  const probs = new Float32Array(pw * ph);
+  let maxP = 0;
+
+  for (let py = 0; py < ph; py++) {
+    const z = (0.5 - py / ph) * 2 * extent;   // top of canvas = +z
+    for (let px = 0; px < pw; px++) {
+      const x   = (px / pw - 0.5) * 2 * extent;
+      const r   = Math.sqrt(x*x + z*z);
+      const cosT = r > 1e-14 ? z / r : 1.0;
+      const p   = probDensity(n, l, m, Z, r, cosT);
+      probs[py * pw + px] = p;
+      if (p > maxP) maxP = p;
+    }
+  }
+
+  // ── Second pass: normalise → gamma compress → colormap → pixels ───────
+  const imgData = ctx.createImageData(pw, ph);
+  const pix     = imgData.data;
+
+  for (let i = 0; i < probs.length; i++) {
+    const t = maxP > 0 ? Math.pow(probs[i] / maxP, gm) : 0;
+    const [r,g,b] = sampleCmap(Math.min(t, 1), activeCmap);
+    pix[i*4]   = r;
+    pix[i*4+1] = g;
+    pix[i*4+2] = b;
+    pix[i*4+3] = 255;
+  }
+
+  // ── Draw ──────────────────────────────────────────────────────────────
+  // Background
+  ctx.fillStyle = '#0f1017';
+  ctx.fillRect(0, 0, W, H);
+
+  // Orbital image
+  ctx.putImageData(imgData, ML, MT);
+
+  // Plot border
+  ctx.strokeStyle = '#2a2d4a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ML, MT, pw, ph);
+
+  // Crosshairs at nucleus
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ML + pw/2, MT);     ctx.lineTo(ML + pw/2, MT + ph);
+  ctx.moveTo(ML,        MT+ph/2); ctx.lineTo(ML + pw,   MT + ph/2);
+  ctx.stroke();
+
+  // Axis ticks & labels
+  const NT = 4;   // ticks per axis (0 … NT inclusive = NT+1 labels)
+  ctx.fillStyle   = '#707090';
+  ctx.strokeStyle = '#3a3a5a';
+  ctx.lineWidth   = 1;
+
+  // X axis (bottom)
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font         = '11px monospace';
+  for (let i = 0; i <= NT; i++) {
+    const f  = i / NT;
+    const xp = ML + f * pw;
+    const v  = -extent + f * 2 * extent;
+    ctx.beginPath(); ctx.moveTo(xp, MT+ph); ctx.lineTo(xp, MT+ph+4); ctx.stroke();
+    ctx.fillText(fmtTick(v), xp, MT + ph + 6);
+  }
+  ctx.font = '12px system-ui';
+  ctx.fillStyle = '#808098';
+  ctx.fillText('x  (a\u2080)', ML + pw/2, H - 4);
+
+  // Z axis (left)
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.font         = '11px monospace';
+  ctx.fillStyle    = '#707090';
+  for (let i = 0; i <= NT; i++) {
+    const f  = i / NT;
+    const yp = MT + f * ph;
+    const v  = extent - f * 2 * extent;   // top = +z
+    ctx.beginPath(); ctx.moveTo(ML, yp); ctx.lineTo(ML-4, yp); ctx.stroke();
+    ctx.fillText(fmtTick(v), ML - 7, yp);
+  }
+  ctx.save();
+  ctx.translate(10, MT + ph/2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font         = '12px system-ui';
+  ctx.fillStyle    = '#808098';
+  ctx.fillText('z  (a\u2080)', 0, 0);
+  ctx.restore();
+
+  // Plot title (top margin)
+  const sub   = SUBSHELL[l] || l.toString();
+  const zNote = Z !== 1 ? `  Z\u202F=\u202F${Z}` : '';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font         = 'bold 13px monospace';
+  ctx.fillStyle    = '#7eb8f7';
+  ctx.fillText(
+    `|\u03C8|²   n\u202F=\u202F${n},  \u2113\u202F=\u202F${l} (${sub}),  m\u202F=\u202F${m}${zNote}`,
+    ML + pw/2, MT/2
+  );
+
+  // Update sidebar state text
+  document.getElementById('state-text').textContent =
+    `${n}${sub}\u00A0\u00A0\u00A0m\u202F=\u202F${m}`;
+}
+
+// ── Control wiring ────────────────────────────────────────────────────────
+
+const nSlider     = document.getElementById('n-slider');
+const lSlider     = document.getElementById('l-slider');
+const mSlider     = document.getElementById('m-slider');
+const ZSlider     = document.getElementById('Z-slider');
+const gammaSlider = document.getElementById('gamma-slider');
+
+/** Resize a range input and clamp its current value into the new bounds. */
+function setRange(slider, min, max) {
+  slider.min = min;
+  slider.max = max;
+  if (+slider.value < min) slider.value = min;
+  if (+slider.value > max) slider.value = max;
+  // Disable (and visually grey out) when there is only one valid choice
+  slider.disabled = (min === max);
+}
+
+function updateRangeLabels() {
+  const n = +nSlider.value, l = +lSlider.value;
+  document.getElementById('l-range').textContent = `0 \u2013 ${n-1}`;
+  document.getElementById('m-range').textContent = `\u2212${l} \u2013 +${l}`;
+}
+
+nSlider.addEventListener('input', () => {
+  document.getElementById('n-val').textContent = nSlider.value;
+  const n = +nSlider.value;
+  setRange(lSlider, 0, n - 1);
+  document.getElementById('l-val').textContent = lSlider.value;
+  const l = +lSlider.value;
+  setRange(mSlider, -l, l);
+  document.getElementById('m-val').textContent = mSlider.value;
+  updateRangeLabels();
+  render();
+});
+
+lSlider.addEventListener('input', () => {
+  document.getElementById('l-val').textContent = lSlider.value;
+  const l = +lSlider.value;
+  setRange(mSlider, -l, l);
+  document.getElementById('m-val').textContent = mSlider.value;
+  updateRangeLabels();
+  render();
+});
+
+mSlider.addEventListener('input', () => {
+  document.getElementById('m-val').textContent = mSlider.value;
+  render();
+});
+
+ZSlider.addEventListener('input', () => {
+  document.getElementById('Z-val').textContent = ZSlider.value;
+  render();
+});
+
+gammaSlider.addEventListener('input', () => {
+  document.getElementById('gamma-val').textContent =
+    parseFloat(gammaSlider.value).toFixed(2);
+  render();
+});
+
+document.querySelectorAll('.cmap-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cmap-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeCmap = btn.dataset.cmap;
+    render();
+  });
+});
+
+// ── Responsive canvas & initial draw ─────────────────────────────────────
+
+function resizeAndRender() {
+  const main = document.getElementById('plot-area');
+  const size = Math.min(main.clientWidth - 40, main.clientHeight - 40);
+  if (size < 80) return;
+  canvas.width  = size;
+  canvas.height = size;
+  render();
+}
+
+window.addEventListener('resize', resizeAndRender);
+// Defer first render until the browser has laid out the page
+requestAnimationFrame(resizeAndRender);
+</script>
+</body>
+</html>
