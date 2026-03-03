@@ -21,13 +21,24 @@ Usage
     python hydrogen_orbitals.py --cmap magma --gamma 0.4
     python hydrogen_orbitals.py --help       # full option list
 
+Layout
+------
+    Orbitals are grouped by principal quantum number n, one n per row,
+    centred horizontally:
+
+        Row 1 (n=1):  1s
+        Row 2 (n=2):  2s   2p(m=0)   2p(m=1)
+        Row 3 (n=3):  3s   3p(m=0)   3p(m=1)   3d(m=0)   3d(m=1)   3d(m=2)
+
 Dependencies
 ------------
     numpy, scipy, matplotlib
 """
 
 import argparse
+from collections import defaultdict
 
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import factorial, genlaguerre, sph_harm
@@ -167,9 +178,13 @@ def plot_orbital(ax, n, l, m, Z=1, grid_size=600, gamma=0.35, cmap='inferno'):
     ax.axvline(0, color='white', lw=0.4, alpha=0.4)
 
 
-def make_figure(orbitals, Z=1, grid_size=600, gamma=0.35,
-                cmap='inferno', ncols=3):
-    """Build and return a figure with one panel per orbital.
+def make_figure(orbitals, Z=1, grid_size=600, gamma=0.35, cmap='inferno'):
+    """Build and return a figure grouped by principal quantum number n.
+
+    Orbitals sharing the same n are placed in the same row, centred
+    horizontally.  The centering is achieved via a GridSpec whose column
+    count is 2 × (max orbitals in any one row); each subplot spans exactly
+    2 GridSpec columns, and shorter rows are offset by (max − k) columns.
 
     Parameters
     ----------
@@ -178,32 +193,69 @@ def make_figure(orbitals, Z=1, grid_size=600, gamma=0.35,
     grid_size: int    Grid resolution per panel.
     gamma    : float  Display gamma (< 1 compresses highlights).
     cmap     : str    Matplotlib colormap name.
-    ncols    : int    Number of columns.
 
     Returns
     -------
     matplotlib Figure
     """
-    nrows = (len(orbitals) + ncols - 1) // ncols
-    fig, axes = plt.subplots(
-        nrows, ncols,
-        figsize=(3.8 * ncols, 3.8 * nrows),
-        constrained_layout=True,
+    # --- group by n, preserving order within each group -----------------
+    groups: dict[int, list] = defaultdict(list)
+    for orb in orbitals:
+        groups[orb[0]].append(orb)
+    n_values = sorted(groups)
+    rows = [groups[n] for n in n_values]
+
+    nrows = len(rows)
+    max_per_row = max(len(row) for row in rows)
+
+    # 2 GridSpec columns per subplot → centering offset is an integer
+    ncols_gs = 2 * max_per_row
+
+    panel_w, panel_h = 3.2, 3.6
+    fig = plt.figure(figsize=(panel_w * max_per_row, panel_h * nrows))
+
+    # Manual margins so we have room for the "n = X" row labels on the left
+    gs = gridspec.GridSpec(
+        nrows, ncols_gs,
+        figure=fig,
+        left=0.07, right=0.98,
+        top=0.88,  bottom=0.06,
+        hspace=0.50, wspace=0.08,
     )
-    axes = np.asarray(axes).flatten()
 
-    for ax, (n, l, m) in zip(axes, orbitals):
-        plot_orbital(ax, n, l, m, Z=Z, grid_size=grid_size,
-                     gamma=gamma, cmap=cmap)
+    leftmost_axes = []   # (n_value, ax) — used later for row labels
 
-    for ax in axes[len(orbitals):]:
-        ax.set_visible(False)
+    for row_idx, (n, row) in enumerate(zip(n_values, rows)):
+        k = len(row)
+        # offset (in GridSpec columns) that centres k subplots in max_per_row
+        col_offset = max_per_row - k
+
+        for col_idx, (n_, l, m) in enumerate(row):
+            col_start = col_offset + 2 * col_idx
+            ax = fig.add_subplot(gs[row_idx, col_start : col_start + 2])
+            plot_orbital(ax, n_, l, m, Z=Z, grid_size=grid_size,
+                         gamma=gamma, cmap=cmap)
+            if col_idx == 0:
+                leftmost_axes.append((n, ax))
+
+    # --- "n = X" labels on the left margin ------------------------------
+    # Draw the canvas so subplot positions are finalised before we read them.
+    fig.canvas.draw()
+    for n, ax in leftmost_axes:
+        bbox = ax.get_position()           # in figure-fraction coordinates
+        y_mid = (bbox.y0 + bbox.y1) / 2
+        fig.text(
+            0.01, y_mid, f'$n = {n}$',
+            va='center', ha='left',
+            fontsize=12, fontweight='bold',
+            rotation='vertical',
+        )
 
     label = f'Z = {Z}' if Z != 1 else 'Hydrogen (Z = 1)'
     fig.suptitle(
         rf'Electron Probability Density $|\psi_{{n\ell m}}|^2$'
-        f'\n{label} — xz cross-section, colour scaled per orbital',
-        fontsize=12,
+        f' — {label}',
+        fontsize=13, y=0.94,
     )
     return fig
 
@@ -213,12 +265,16 @@ def make_figure(orbitals, Z=1, grid_size=600, gamma=0.35,
 # ---------------------------------------------------------------------------
 
 DEFAULT_ORBITALS = [
+    # n=1 — 1 orbital
     (1, 0,  0),   # 1s
+    # n=2 — 3 orbitals
     (2, 0,  0),   # 2s
     (2, 1,  0),   # 2p, m=0  (lobes along z)
     (2, 1,  1),   # 2p, m=±1 (toroidal; same |ψ|² for m=−1)
+    # n=3 — 6 orbitals
     (3, 0,  0),   # 3s
     (3, 1,  0),   # 3p, m=0
+    (3, 1,  1),   # 3p, m=±1
     (3, 2,  0),   # 3d, m=0  (z² shape)
     (3, 2,  1),   # 3d, m=±1
     (3, 2,  2),   # 3d, m=±2
@@ -242,8 +298,6 @@ def parse_args():
                    help='display gamma (< 1 compresses highlights)')
     p.add_argument('--grid', type=int, default=600,
                    help='grid resolution per panel')
-    p.add_argument('--ncols', type=int, default=3,
-                   help='number of columns in the figure')
     p.add_argument('--save', action='store_true',
                    help='save the figure to --outfile')
     p.add_argument('--outfile', default='hydrogen_orbitals.png',
@@ -261,7 +315,6 @@ def main():
         grid_size=args.grid,
         gamma=args.gamma,
         cmap=args.cmap,
-        ncols=args.ncols,
     )
     if args.save:
         fig.savefig(args.outfile, dpi=args.dpi, bbox_inches='tight')
