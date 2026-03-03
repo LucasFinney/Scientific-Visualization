@@ -8,6 +8,8 @@ Tools used: Python, Mathematica, and whatever else is relevant.
 
 ## Scripts
 
+#### `hydrogen_orbitals.html` — Zero-install web applet
+
 ### Hydrogen-like Atom Orbitals
 
 **Dependencies:** `numpy`, `scipy`, `matplotlib`
@@ -48,5 +50,3 @@ python hydrogen_orbitals_interactive.py
 ```
 
 > **Note:** Grid resolution is set by `GRID_SIZE` at the top of the file (default 300). Increase to 500–600 for higher-quality screenshots; decrease if updates feel sluggish.
-
-#### `hydrogen_orbitals.html` — Zero-install web applet
