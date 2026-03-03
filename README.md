@@ -50,14 +50,3 @@ python hydrogen_orbitals_interactive.py
 > **Note:** Grid resolution is set by `GRID_SIZE` at the top of the file (default 300). Increase to 500–600 for higher-quality screenshots; decrease if updates feel sluggish.
 
 #### `hydrogen_orbitals.html` — Zero-install web applet
-
-The same interactive viewer reimplemented in pure HTML + JavaScript — no Python, no installation, no server. Open it directly in any browser, or share the URL if you enable GitHub Pages.
-
-**To run locally:** just double-click the file (or drag it into a browser tab).
-
-**To share via GitHub Pages:**
-1. Go to your repo → **Settings → Pages**
-2. Set source to **main branch, / (root)**
-3. Link directly to `https://lucasfinney.github.io/Scientific-Visualization/hydrogen_orbitals.html`
-
-All physics (Laguerre polynomials, associated Legendre polynomials, normalization) is implemented from scratch in JavaScript and rendered pixel-by-pixel into an HTML5 Canvas. Controls and behaviour are identical to the Python version.
