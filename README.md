@@ -8,7 +8,7 @@ Tools used: Python, Mathematica, and whatever else is relevant.
 
 ## Scripts
 
-#### `hydrogen_orbitals.html` — Zero-install web applet
+#### `hydrogen_orbitals.html`  https://lucasfinney.github.io/Scientific-Visualization/hydrogen_orbitals.html — Zero-install web applet
 
 ### Hydrogen-like Atom Orbitals
 
