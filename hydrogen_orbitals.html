@@ -120,6 +120,14 @@ input[type=range]::-moz-range-thumb {
 input[type=range]:disabled { opacity: 0.35; cursor: not-allowed; }
 input[type=range]:disabled::-webkit-slider-thumb { cursor: not-allowed; }
 
+input[type=range].disabled-slider {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+input[type=range].disabled-slider::-webkit-slider-thumb { cursor: not-allowed; }
+input[type=range].disabled-slider::-moz-range-thumb { cursor: not-allowed; }
+
 /* ── Toggle pill ──────────────────────────────────────────────────────── */
 .toggle-row {
   display: flex;
@@ -617,7 +625,15 @@ zoomSlider.addEventListener('input', () => {
   render();
 });
 
-document.getElementById('autoscale').addEventListener('change', render);
+document.getElementById('autoscale').addEventListener('change', () => {
+  const autoscaleChecked = document.getElementById('autoscale').checked;
+  if (autoscaleChecked) {
+    zoomSlider.classList.add('disabled-slider');
+  } else {
+    zoomSlider.classList.remove('disabled-slider');
+  }
+  render();
+});
 
 document.querySelectorAll('.cmap-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -637,6 +653,11 @@ function resizeAndRender() {
   canvas.width  = size;
   canvas.height = size;
   render();
+}
+
+// Disable zoom slider if autoscale is checked initially
+if (document.getElementById('autoscale').checked) {
+  zoomSlider.classList.add('disabled-slider');
 }
 
 window.addEventListener('resize', resizeAndRender);
