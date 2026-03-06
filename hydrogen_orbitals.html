@@ -261,6 +261,15 @@ input[type=checkbox]:checked ~ .toggle-pill::after {
       <input type="range" id="gamma-slider" min="0.10" max="1.00" value="0.35" step="0.05">
     </div>
 
+    <div class="ctrl">
+      <label>
+        <span class="name">Zoom</span>
+        <span class="range">0.5× – 3.0×</span>
+        <span class="val" id="zoom-val">1.0×</span>
+      </label>
+      <input type="range" id="zoom-slider" min="0.5" max="3.0" value="1.0" step="0.1">
+    </div>
+
     <label class="toggle-row" title="OFF: domain fixed at 5n² a₀ so the orbital visually shrinks as Z increases">
       <span>Auto-scale domain</span>
       <input type="checkbox" id="autoscale" checked>
@@ -427,7 +436,8 @@ function render() {
   if (pw < 10 || ph < 10) return;
 
   const autoScale = document.getElementById('autoscale').checked;
-  const extent = autoScale ? 5 * n * n / Z : 5 * n * n;   // half-width in a0
+  const zoom = +zoomSlider.value;
+  const extent = autoScale ? 5 * n * n / Z : 80 / zoom;   // half-width in a0
 
   // ── First pass: compute raw probability on the pixel grid ─────────────
   const probs = new Float32Array(pw * ph);
@@ -546,6 +556,7 @@ const lSlider     = document.getElementById('l-slider');
 const mSlider     = document.getElementById('m-slider');
 const ZSlider     = document.getElementById('Z-slider');
 const gammaSlider = document.getElementById('gamma-slider');
+const zoomSlider  = document.getElementById('zoom-slider');
 
 /** Resize a range input and clamp its current value into the new bounds. */
 function setRange(slider, min, max) {
@@ -597,6 +608,12 @@ ZSlider.addEventListener('input', () => {
 gammaSlider.addEventListener('input', () => {
   document.getElementById('gamma-val').textContent =
     parseFloat(gammaSlider.value).toFixed(2);
+  render();
+});
+
+zoomSlider.addEventListener('input', () => {
+  document.getElementById('zoom-val').textContent =
+    parseFloat(zoomSlider.value).toFixed(1) + '×';
   render();
 });
 
