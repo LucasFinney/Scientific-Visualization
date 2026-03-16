@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirror Ray Tracing</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #0f1017;
+  color: #d8ddf0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+#panel {
+  width: 260px;
+  min-width: 260px;
+  background: #12131a;
+  border-right: 1px solid #1e2030;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px 16px;
+  overflow-y: auto;
+  gap: 0;
+}
+
+#plot-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-width: 0;
+}
+
+canvas { display: block; }
+
+/* ── Sidebar typography ────────────────────────────────────────────────── */
+h1 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #7eb8f7;
+  font-family: monospace;
+  line-height: 1.5;
+  margin-bottom: 3px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: #505570;
+  margin-bottom: 14px;
+}
+
+.section {
+  font-size: 9px;
+  font-weight: 700;
+  color: #505570;
+  font-family: monospace;
+  letter-spacing: 1.2px;
+  margin: 14px 0 8px;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #1e2030;
+  margin: 4px 0;
+}
+
+/* ── Slider controls ──────────────────────────────────────────────────── */
+.ctrl { margin-bottom: 12px; }
+
+.ctrl label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+  color: #c0c8e0;
+}
+
+.ctrl label .name  { font-size: 13px; }
+.ctrl label .range { font-size: 10px; color: #404560; font-family: monospace; }
+.ctrl label .val   { font-size: 13px; color: #7eb8f7; font-family: monospace; min-width: 30px; text-align: right; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #1e2a42;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #7eb8f7;
+  border: 2px solid #0f1017;
+  cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #7eb8f7;
+  border: 2px solid #0f1017;
+  cursor: pointer;
+  border: none;
+}
+
+/* ── Mirror type buttons ─────────────────────────────────────────────── */
+.mirror-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+}
+
+.mirror-btn {
+  background: #1a1c2c;
+  color: #8090b0;
+  border: 1px solid #252840;
+  border-radius: 4px;
+  padding: 7px 4px;
+  font-size: 11px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  text-align: center;
+}
+.mirror-btn:hover  { background: #22253a; color: #c8d0e8; }
+.mirror-btn.active { background: #1a3258; color: #7eb8f7; border-color: #2c5080; }
+
+/* ── Info block ───────────────────────────────────────────────────────── */
+#info-block {
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #c0c8e0;
+  padding: 4px 0;
+}
+#info-block .lbl { color: #505570; }
+#info-block .real-tag   { color: #f07878; }
+#info-block .virt-tag   { color: #c084fc; }
+
+/* ── State readout ────────────────────────────────────────────────────── */
+#state {
+  margin-top: auto;
+  padding-top: 18px;
+  text-align: center;
+}
+#state-label {
+  font-size: 9px;
+  color: #505570;
+  letter-spacing: 1px;
+  font-family: monospace;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+#state-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #7eb8f7;
+  font-family: monospace;
+  line-height: 1.6;
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- ── Control panel ────────────────────────────────────────────────── -->
+  <aside id="panel">
+    <h1>Mirror<br>Ray Tracing</h1>
+    <div class="subtitle">Interactive optics diagram</div>
+
+    <hr>
+    <div class="section">MIRROR TYPE</div>
+    <div class="mirror-grid">
+      <button class="mirror-btn active" data-type="concave">Concave</button>
+      <button class="mirror-btn"        data-type="convex">Convex</button>
+      <button class="mirror-btn"        data-type="plane">Plane</button>
+    </div>
+
+    <hr>
+    <div class="section">PARAMETERS</div>
+
+    <div class="ctrl">
+      <label>
+        <span class="name">d<sub>o</sub></span>
+        <span class="range">1 – 30</span>
+        <span class="val" id="do-val">12.0</span>
+      </label>
+      <input type="range" id="do-slider" min="1" max="30" value="12" step="0.5">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="name">h<sub>o</sub></span>
+        <span class="range">0.5 – 5</span>
+        <span class="val" id="ho-val">2.0</span>
+      </label>
+      <input type="range" id="ho-slider" min="0.5" max="5" value="2" step="0.25">
+    </div>
+
+    <div class="ctrl">
+      <label>
+        <span class="name">f</span>
+        <span class="range">2 – 15</span>
+        <span class="val" id="f-val">5.0</span>
+      </label>
+      <input type="range" id="f-slider" min="2" max="15" value="5" step="0.5">
+    </div>
+
+    <hr>
+    <div class="section">IMAGE PROPERTIES</div>
+    <div id="info-block"></div>
+
+    <div id="state">
+      <div id="state-label">MIRROR EQUATION</div>
+      <div id="state-text"></div>
+    </div>
+  </aside>
+
+  <!-- ── Plot canvas ──────────────────────────────────────────────────── -->
+  <main id="plot-area">
+    <canvas id="canvas"></canvas>
+  </main>
+
+</div><!-- #app -->
+
+<script>
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────────
+const ACCENT   = '#7eb8f7';
+const DIM      = '#505570';
+const RAY_COLS = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+const OBJ_CLR  = '#7eb8f7';
+const IMG_REAL = '#f07878';
+const IMG_VIRT = '#c084fc';
+const MIRROR_C = '#8899bb';
+const AXIS_CLR = 'rgba(255,255,255,0.15)';
+const GRID_CLR = 'rgba(255,255,255,0.04)';
+const BG       = '#07080f';
+
+// ── State ────────────────────────────────────────────────────────────────
+let mirrorType = 'concave';
+
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const doSlider = document.getElementById('do-slider');
+const hoSlider = document.getElementById('ho-slider');
+const fSlider  = document.getElementById('f-slider');
+
+// ── Physics ──────────────────────────────────────────────────────────────
+
+function computeImage(dObj, f, type) {
+  if (type === 'plane') {
+    return { di: -dObj, M: 1, real: false, inverted: false };
+  }
+  const fSigned = type === 'concave' ? f : -f;
+  if (Math.abs(dObj - fSigned) < 0.15) {
+    return { di: Infinity, M: Infinity, real: false, inverted: false };
+  }
+  const di = (fSigned * dObj) / (dObj - fSigned);
+  const M  = -di / dObj;
+  return { di, M, real: di > 0, inverted: M < 0 };
+}
+
+// ── Drawing helpers ──────────────────────────────────────────────────────
+
+// Mapping from world coords to canvas pixels
+let wxMin, wxMax, wyMin, wyMax, pxL, pxR, pyT, pyB;
+
+function toCanvasX(wx) { return pxL + (wx - wxMin) / (wxMax - wxMin) * (pxR - pxL); }
+function toCanvasY(wy) { return pyB - (wy - wyMin) / (wyMax - wyMin) * (pyB - pyT); }
+
+function drawLine(x0, y0, x1, y1, color, lw, dash) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw || 1.5;
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  ctx.moveTo(toCanvasX(x0), toCanvasY(y0));
+  ctx.lineTo(toCanvasX(x1), toCanvasY(y1));
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawArrow(x, y0, y1, color, dashed) {
+  const cx = toCanvasX(x);
+  const cy0 = toCanvasY(y0);
+  const cy1 = toCanvasY(y1);
+  const dy = cy1 - cy0;
+  if (Math.abs(dy) < 2) return;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.5;
+  if (dashed) ctx.setLineDash([6, 4]);
+
+  // Shaft
+  const headLen = Math.min(10, Math.abs(dy) * 0.3);
+  const dir = dy > 0 ? 1 : -1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy0);
+  ctx.lineTo(cx, cy1 - dir * headLen);
+  ctx.stroke();
+
+  // Arrowhead
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy1);
+  ctx.lineTo(cx - 5, cy1 - dir * headLen);
+  ctx.lineTo(cx + 5, cy1 - dir * headLen);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawText(wx, wy, text, color, size, align, baseline) {
+  ctx.save();
+  ctx.fillStyle = color || '#c0c8e0';
+  ctx.font = `${size || 11}px monospace`;
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = baseline || 'top';
+  ctx.fillText(text, toCanvasX(wx), toCanvasY(wy));
+  ctx.restore();
+}
+
+function drawDot(wx, wy, color, radius) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(toCanvasX(wx), toCanvasY(wy), radius || 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ── Mirror surface ───────────────────────────────────────────────────────
+
+function drawMirror(f, type, halfH) {
+  const N = 120;
+  ctx.save();
+  ctx.strokeStyle = MIRROR_C;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  for (let i = 0; i <= N; i++) {
+    const y = -halfH + (2 * halfH * i) / N;
+    let x = 0;
+    if (type !== 'plane') {
+      const R = 2 * f;
+      const yc = Math.min(Math.abs(y), R - 0.01);
+      const sag = R - Math.sqrt(R * R - yc * yc);
+      x = type === 'concave' ? sag : -sag;
+    }
+    const cx = toCanvasX(x), cy = toCanvasY(y);
+    if (i === 0) ctx.moveTo(cx, cy);
+    else ctx.lineTo(cx, cy);
+  }
+  ctx.stroke();
+
+  // Hatch marks on non-reflecting side
+  ctx.strokeStyle = MIRROR_C;
+  ctx.lineWidth = 0.7;
+  ctx.globalAlpha = 0.4;
+  const nHatch = 14;
+  for (let i = 0; i <= nHatch; i++) {
+    const y = -halfH + (2 * halfH * i) / nHatch;
+    let mx = 0;
+    if (type !== 'plane') {
+      const R = 2 * f;
+      const yc = Math.min(Math.abs(y), R - 0.01);
+      const sag = R - Math.sqrt(R * R - yc * yc);
+      mx = type === 'concave' ? sag : -sag;
+    }
+    const hLen = 0.4;
+    if (type === 'convex') {
+      drawLine(mx - hLen, y - hLen * 0.5, mx, y + hLen * 0.5, MIRROR_C, 0.7);
+    } else {
+      drawLine(mx, y - hLen * 0.5, mx + hLen, y + hLen * 0.5, MIRROR_C, 0.7);
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// ── Rays ─────────────────────────────────────────────────────────────────
+
+function drawRaysCurved(dObj, ho, f, di, hi, type) {
+  const xObj = -dObj;
+  const isConcave = type === 'concave';
+  const fPos = f;  // always positive magnitude
+  const xF = isConcave ? -fPos : fPos;
+  const xC = isConcave ? -2 * fPos : 2 * fPos;
+  const atFocal = Math.abs(dObj - fPos) < 0.15 && isConcave;
+  const extLen = Math.max(dObj, fPos) * 2.5;
+
+  // ── Ray 1: Parallel ray ────────────────────────────────────────────
+  // Incoming: horizontal from tip to mirror
+  drawLine(xObj, ho, 0, ho, RAY_COLS[0], 1.5);
+
+  if (isConcave) {
+    if (atFocal) {
+      // Reflects parallel
+      drawLine(0, ho, xObj - 5, ho, RAY_COLS[0], 1.5);
+    } else {
+      // Through F
+      const dx = xF, dy = -ho;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const t = extLen / len;
+      drawLine(0, ho, dx * t, ho + dy * t, RAY_COLS[0], 1.5);
+
+      // If virtual image (do < f), dashed extension behind mirror
+      if (dObj < fPos) {
+        drawLine(0, ho, -dx * t * 0.5, ho - dy * t * 0.5, RAY_COLS[0], 1, [5, 4]);
+      }
+    }
+  } else {
+    // Convex: diverge as if from virtual F
+    const dx = -xF, dy = ho;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const t = extLen / len;
+    drawLine(0, ho, dx * t, ho + dy * t, RAY_COLS[0], 1.5);
+    // Dashed to virtual F
+    drawLine(0, ho, xF, 0, RAY_COLS[0], 1, [5, 4]);
+  }
+
+  // ── Ray 2: Focal ray ──────────────────────────────────────────────
+  if (isConcave) {
+    // Through F to mirror
+    const dx_tf = xF - xObj;
+    const dy_tf = -ho;
+    let yMirror = ho;
+    if (Math.abs(dx_tf) > 0.01) {
+      const t = (0 - xObj) / dx_tf;
+      yMirror = ho + dy_tf * t;
+    }
+    drawLine(xObj, ho, 0, yMirror, RAY_COLS[1], 1.5);
+
+    if (atFocal) {
+      // Object at F → special: ray from tip goes to mirror and reflects…
+      // but the "focal ray" from F just goes horizontal
+      drawLine(0, yMirror, xObj - 5, yMirror, RAY_COLS[1], 1.5);
+    } else {
+      // Reflects parallel
+      drawLine(0, yMirror, xObj - extLen, yMirror, RAY_COLS[1], 1.5);
+
+      if (dObj < fPos) {
+        // Dashed extension behind mirror
+        drawLine(0, yMirror, extLen * 0.6, yMirror, RAY_COLS[1], 1, [5, 4]);
+      }
+    }
+  } else {
+    // Convex: aimed at virtual F
+    const dx_tf = xF - xObj;
+    const dy_tf = -ho;
+    let yMirror = ho;
+    if (Math.abs(dx_tf) > 0.01) {
+      const t = (0 - xObj) / dx_tf;
+      yMirror = ho + dy_tf * t;
+    }
+    drawLine(xObj, ho, 0, yMirror, RAY_COLS[1], 1.5);
+    // Reflects parallel
+    drawLine(0, yMirror, -(dObj + extLen * 0.5), yMirror, RAY_COLS[1], 1.5);
+    // Dashed to virtual F
+    drawLine(0, yMirror, xF, 0, RAY_COLS[1], 1, [5, 4]);
+  }
+
+  // ── Ray 3: Centre ray (through C) ─────────────────────────────────
+  const dx_tc = xC - xObj;
+  const dy_tc = -ho;
+  let yMirrorC = ho;
+  if (Math.abs(dx_tc) > 0.01) {
+    const t = (0 - xObj) / dx_tc;
+    yMirrorC = ho + dy_tc * t;
+  }
+  drawLine(xObj, ho, 0, yMirrorC, RAY_COLS[2], 1.5);
+
+  // Reflects back on itself
+  const dxBack = xObj;
+  const dyBack = ho - yMirrorC;
+  const lenBack = Math.sqrt(dxBack * dxBack + dyBack * dyBack);
+  if (lenBack > 0.01) {
+    const tb = extLen / lenBack;
+    drawLine(0, yMirrorC, dxBack * tb, yMirrorC + dyBack * tb, RAY_COLS[2], 1.5);
+  }
+
+  if (!isConcave) {
+    // Dashed to virtual C
+    drawLine(0, yMirrorC, xC, 0, RAY_COLS[2], 1, [5, 4]);
+  } else if (dObj < fPos && !atFocal) {
+    // Concave virtual: dashed extension behind mirror
+    if (lenBack > 0.01) {
+      const tb2 = extLen * 0.4 / lenBack;
+      drawLine(0, yMirrorC, -dxBack * tb2, yMirrorC - dyBack * tb2, RAY_COLS[2], 1, [5, 4]);
+    }
+  }
+}
+
+function drawRaysPlane(dObj, ho) {
+  const xObj = -dObj;
+  const xImg = dObj;
+
+  // Ray 1: perpendicular (horizontal at tip height)
+  drawLine(xObj, ho, 0, ho, RAY_COLS[0], 1.5);
+  drawLine(0, ho, xObj - 3, ho, RAY_COLS[0], 1.5);
+  drawLine(0, ho, xImg, ho, RAY_COLS[0], 1, [5, 4]);
+
+  // Ray 2: angled to mirror at axis
+  drawLine(xObj, ho, 0, 0, RAY_COLS[1], 1.5);
+  drawLine(0, 0, xObj - 3, -ho, RAY_COLS[1], 1.5);
+  drawLine(0, 0, xImg, ho, RAY_COLS[1], 1, [5, 4]);
+
+  // Ray 3: angled to mirror at mid-height
+  const yHit = ho * 0.5;
+  drawLine(xObj, ho, 0, yHit, RAY_COLS[2], 1.5);
+  const dyIn = yHit - ho;
+  const dyOut = -dyIn;
+  const t = 2.5;
+  drawLine(0, yHit, -dObj * t, yHit + dyOut * t, RAY_COLS[2], 1.5);
+  drawLine(0, yHit, xImg, ho, RAY_COLS[2], 1, [5, 4]);
+}
+
+// ── Main render ──────────────────────────────────────────────────────────
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  const ML = 54, MR = 20, MT = 30, MB = 30;
+
+  pxL = ML; pxR = W - MR;
+  pyT = MT; pyB = H - MB;
+
+  const dObj = +doSlider.value;
+  const ho   = +hoSlider.value;
+  const f    = +fSlider.value;
+
+  const img = computeImage(dObj, f, mirrorType);
+  const di = img.di;
+  const M  = img.M;
+  const hi = Math.abs(di) === Infinity ? 0 : M * ho;
+
+  // Determine world bounds
+  const xObj = -dObj;
+  const mirrorH = ho * 1.8;
+
+  let xImgWorld = null;
+  if (mirrorType === 'plane') {
+    xImgWorld = dObj;
+  } else if (Math.abs(di) !== Infinity) {
+    xImgWorld = di > 0 ? -di : Math.abs(di);
+  }
+
+  const fSigned = mirrorType === 'concave' ? f : -f;
+  const xF = mirrorType === 'concave' ? -f : f;
+  const xC = mirrorType === 'concave' ? -2 * f : 2 * f;
+
+  let xMin = xObj - 3;
+  let xMax = 3;
+  if (mirrorType !== 'plane') {
+    xMin = Math.min(xMin, xF - 2, xC - 2);
+    xMax = Math.max(xMax, xF + 2, xC + 2);
+  }
+  if (xImgWorld !== null) {
+    xMin = Math.min(xMin, xImgWorld - 2);
+    xMax = Math.max(xMax, xImgWorld + 2);
+  }
+  if (mirrorType === 'plane') {
+    xMax = Math.max(xMax, dObj + 3);
+  }
+
+  const yBound = Math.max(Math.abs(ho), Math.abs(hi), mirrorH) + 2;
+  // Make symmetric and a bit wider
+  const xRange = xMax - xMin;
+  const yRange = 2 * yBound;
+  // Maintain aspect ratio — use the wider of the two
+  const aspect = (pxR - pxL) / (pyB - pyT);
+  if (xRange / yRange > aspect) {
+    // x-limited
+    wxMin = xMin; wxMax = xMax;
+    const mid = 0;
+    const halfY = xRange / aspect / 2;
+    wyMin = mid - halfY; wyMax = mid + halfY;
+  } else {
+    // y-limited
+    wyMin = -yBound; wyMax = yBound;
+    const mid = (xMin + xMax) / 2;
+    const halfX = yRange * aspect / 2;
+    wxMin = mid - halfX; wxMax = mid + halfX;
+  }
+
+  // ── Background ─────────────────────────────────────────────────────
+  ctx.fillStyle = '#0f1017';
+  ctx.fillRect(0, 0, W, H);
+
+  // Plot area background
+  ctx.fillStyle = BG;
+  ctx.fillRect(pxL, pyT, pxR - pxL, pyB - pyT);
+
+  // Plot border
+  ctx.strokeStyle = '#2a2d4a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pxL, pyT, pxR - pxL, pyB - pyT);
+
+  // ── Principal axis ─────────────────────────────────────────────────
+  ctx.save();
+  ctx.strokeStyle = AXIS_CLR;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pxL, toCanvasY(0));
+  ctx.lineTo(pxR, toCanvasY(0));
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Mirror surface ─────────────────────────────────────────────────
+  drawMirror(f, mirrorType, mirrorH);
+
+  // ── F and C markers ────────────────────────────────────────────────
+  if (mirrorType !== 'plane') {
+    drawDot(xF, 0, ACCENT, 5);
+    drawText(xF, -yBound * 0.12, 'F', ACCENT, 12, 'center', 'top');
+    drawDot(xC, 0, DIM, 4);
+    drawText(xC, -yBound * 0.12, 'C', DIM, 12, 'center', 'top');
+  }
+
+  // ── Object arrow ───────────────────────────────────────────────────
+  drawArrow(xObj, 0, ho, OBJ_CLR, false);
+  drawDot(xObj, 0, OBJ_CLR, 3);
+  drawText(xObj, ho + yBound * 0.06, 'Object', OBJ_CLR, 10, 'center', 'bottom');
+
+  // ── Rays ───────────────────────────────────────────────────────────
+  if (mirrorType === 'plane') {
+    drawRaysPlane(dObj, ho);
+  } else {
+    drawRaysCurved(dObj, ho, f, di, hi, mirrorType);
+  }
+
+  // ── Image arrow ────────────────────────────────────────────────────
+  if (xImgWorld !== null && Math.abs(di) !== Infinity) {
+    const isVirtual = !img.real;
+    const clr = isVirtual ? IMG_VIRT : IMG_REAL;
+    drawArrow(xImgWorld, 0, hi, clr, isVirtual);
+    drawDot(xImgWorld, 0, clr, 3);
+    const label = isVirtual ? 'Virtual image' : 'Real image';
+    const yOff = hi >= 0 ? yBound * 0.06 : -yBound * 0.06;
+    const vBase = hi >= 0 ? 'bottom' : 'top';
+    drawText(xImgWorld, hi + yOff, label, clr, 9, 'center', vBase);
+  }
+
+  // ── Title ──────────────────────────────────────────────────────────
+  const typeLabel = mirrorType.charAt(0).toUpperCase() + mirrorType.slice(1);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillStyle = ACCENT;
+  ctx.fillText(`${typeLabel} Mirror \u2014 Ray Diagram`, (pxL + pxR) / 2, MT / 2);
+
+  // ── Axis tick labels ───────────────────────────────────────────────
+  const nTicks = 6;
+  ctx.fillStyle = '#707090';
+  ctx.strokeStyle = '#3a3a5a';
+  ctx.lineWidth = 1;
+  ctx.font = '10px monospace';
+
+  // X axis
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i <= nTicks; i++) {
+    const frac = i / nTicks;
+    const wx = wxMin + frac * (wxMax - wxMin);
+    const cx = pxL + frac * (pxR - pxL);
+    ctx.beginPath(); ctx.moveTo(cx, pyB); ctx.lineTo(cx, pyB + 4); ctx.stroke();
+    ctx.fillText(wx.toFixed(1), cx, pyB + 5);
+  }
+
+  // Y axis
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= nTicks; i++) {
+    const frac = i / nTicks;
+    const wy = wyMax - frac * (wyMax - wyMin);
+    const cy = pyT + frac * (pyB - pyT);
+    ctx.beginPath(); ctx.moveTo(pxL, cy); ctx.lineTo(pxL - 4, cy); ctx.stroke();
+    ctx.fillText(wy.toFixed(1), pxL - 6, cy);
+  }
+
+  // ── Ray legend ─────────────────────────────────────────────────────
+  const legendLabels = mirrorType === 'plane'
+    ? ['Perpendicular', 'Through axis', 'Angled']
+    : ['Parallel', 'Focal', 'Centre'];
+  const legX = pxR - 110;
+  const legY = pyT + 14;
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < 3; i++) {
+    const y = legY + i * 16;
+    ctx.strokeStyle = RAY_COLS[i];
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(legX, y); ctx.lineTo(legX + 18, y); ctx.stroke();
+    ctx.fillStyle = '#a0a8c0';
+    ctx.fillText(legendLabels[i], legX + 22, y);
+  }
+
+  // ── Update sidebar info ────────────────────────────────────────────
+  updateInfo(img, mirrorType, dObj, f);
+}
+
+// ── Info panel ───────────────────────────────────────────────────────────
+
+function updateInfo(img, type, dObj, f) {
+  const el = document.getElementById('info-block');
+  const di = img.di;
+  const M  = img.M;
+
+  let html;
+  if (Math.abs(di) === Infinity) {
+    html = `<span class="lbl">Type:</span>  \u2014<br>
+            <span class="lbl">Orient:</span>  \u2014<br>
+            <span class="lbl">Size:</span>  \u2014<br>
+            <span class="lbl">M:</span>  \u221e<br>
+            <span class="lbl">d\u1d62:</span>  \u221e<br><br>
+            Object at focal point<br>Image at infinity`;
+  } else {
+    const typTag = img.real
+      ? `<span class="real-tag">Real</span>`
+      : `<span class="virt-tag">Virtual</span>`;
+    const orient = img.inverted ? 'Inverted' : 'Upright';
+    const absM = Math.abs(M);
+    const size = Math.abs(absM - 1) < 0.05 ? 'Same size'
+               : absM > 1 ? 'Magnified' : 'Diminished';
+
+    html = `<span class="lbl">Type:</span>  ${typTag}<br>
+            <span class="lbl">Orient:</span>  ${orient}<br>
+            <span class="lbl">Size:</span>  ${size}<br>
+            <span class="lbl">M:</span>  ${M >= 0 ? '+' : ''}${M.toFixed(2)}<br>
+            <span class="lbl">d\u1d62:</span>  ${di >= 0 ? '+' : ''}${di.toFixed(1)}`;
+  }
+  el.innerHTML = html;
+
+  // Equation readout
+  const stateEl = document.getElementById('state-text');
+  if (type === 'plane') {
+    stateEl.textContent = `d\u1d62 = d\u2092 = ${dObj.toFixed(1)}`;
+  } else if (Math.abs(di) === Infinity) {
+    stateEl.textContent = `1/f = 1/d\u2092 + 1/\u221e`;
+  } else {
+    const fSigned = type === 'concave' ? f : -f;
+    stateEl.innerHTML = `1/d<sub>o</sub> + 1/d<sub>i</sub> = 1/f<br>` +
+      `${(1/dObj).toFixed(3)} + ${(1/di).toFixed(3)} = ${(1/fSigned).toFixed(3)}`;
+  }
+}
+
+// ── Control wiring ───────────────────────────────────────────────────────
+
+doSlider.addEventListener('input', () => {
+  document.getElementById('do-val').textContent = parseFloat(doSlider.value).toFixed(1);
+  render();
+});
+
+hoSlider.addEventListener('input', () => {
+  document.getElementById('ho-val').textContent = parseFloat(hoSlider.value).toFixed(1);
+  render();
+});
+
+fSlider.addEventListener('input', () => {
+  document.getElementById('f-val').textContent = parseFloat(fSlider.value).toFixed(1);
+  render();
+});
+
+document.querySelectorAll('.mirror-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mirror-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mirrorType = btn.dataset.type;
+    render();
+  });
+});
+
+// ── Responsive canvas & initial draw ─────────────────────────────────────
+
+function resizeAndRender() {
+  const main = document.getElementById('plot-area');
+  const w = main.clientWidth - 40;
+  const h = main.clientHeight - 40;
+  if (w < 80 || h < 80) return;
+  canvas.width  = w;
+  canvas.height = h;
+  render();
+}
+
+window.addEventListener('resize', resizeAndRender);
+requestAnimationFrame(resizeAndRender);
+</script>
+</body>
+</html>
