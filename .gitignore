@@ -27,3 +27,6 @@ desktop.ini
 
 # Claude Code internal files
 .claude/
+
+# Outputs
+media/
