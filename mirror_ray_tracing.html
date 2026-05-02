@@ -14,6 +14,7 @@ html, body {
   color: #d8ddf0;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 13px;
+  transition: background 0.2s, color 0.2s;
 }
 
 /* ── Layout ───────────────────────────────────────────────────────────── */
@@ -32,6 +33,7 @@ html, body {
   padding: 20px 16px 16px;
   overflow-y: auto;
   gap: 0;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 #plot-area {
@@ -113,7 +115,6 @@ input[type=range]::-moz-range-thumb {
   width: 14px; height: 14px;
   border-radius: 50%;
   background: #7eb8f7;
-  border: 2px solid #0f1017;
   cursor: pointer;
   border: none;
 }
@@ -139,6 +140,42 @@ input[type=range]::-moz-range-thumb {
 }
 .mirror-btn:hover  { background: #22253a; color: #c8d0e8; }
 .mirror-btn.active { background: #1a3258; color: #7eb8f7; border-color: #2c5080; }
+
+/* ── Toggle buttons (visibility & theme) ─────────────────────────────── */
+.toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.toggle-btn {
+  background: #1a1c2c;
+  color: #8090b0;
+  border: 1px solid #252840;
+  border-radius: 4px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  flex: 1;
+  text-align: center;
+}
+.toggle-btn:hover  { background: #22253a; color: #c8d0e8; }
+.toggle-btn.active { background: #1a3258; color: #7eb8f7; border-color: #2c5080; }
+
+#theme-btn {
+  width: 100%;
+  padding: 7px;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+#theme-btn.active {
+  background: #28260a;
+  color: #e8c840;
+  border-color: #504820;
+}
 
 /* ── Info block ───────────────────────────────────────────────────────── */
 #info-block {
@@ -173,6 +210,39 @@ input[type=range]::-moz-range-thumb {
   font-family: monospace;
   line-height: 1.6;
 }
+
+/* ── Light mode overrides ─────────────────────────────────────────────── */
+body.light-mode {
+  background: #ffffff;
+  color: #1a1c2c;
+}
+body.light-mode #panel {
+  background: #f2f2f2;
+  border-right-color: #d0d0d0;
+}
+body.light-mode h1 { color: #1a56d6; }
+body.light-mode .subtitle { color: #707070; }
+body.light-mode .section { color: #707070; }
+body.light-mode hr { border-top-color: #d0d0d0; }
+body.light-mode .ctrl label { color: #202020; }
+body.light-mode .ctrl label .range { color: #909090; }
+body.light-mode .ctrl label .val   { color: #1a56d6; }
+body.light-mode input[type=range] { background: #cccccc; }
+body.light-mode input[type=range]::-webkit-slider-thumb { background: #1a56d6; border-color: #f2f2f2; }
+body.light-mode input[type=range]::-moz-range-thumb     { background: #1a56d6; }
+body.light-mode .mirror-btn         { background: #e4e4e4; color: #303030; border-color: #b8b8b8; }
+body.light-mode .mirror-btn:hover   { background: #d8d8d8; color: #101010; }
+body.light-mode .mirror-btn.active  { background: #c8dcf8; color: #1a56d6; border-color: #5070c0; }
+body.light-mode .toggle-btn         { background: #e4e4e4; color: #303030; border-color: #b8b8b8; }
+body.light-mode .toggle-btn:hover   { background: #d8d8d8; color: #101010; }
+body.light-mode .toggle-btn.active  { background: #c8dcf8; color: #1a56d6; border-color: #5070c0; }
+body.light-mode #theme-btn.active   { background: #fff0b0; color: #806000; border-color: #c0a020; }
+body.light-mode #info-block         { color: #202020; }
+body.light-mode #info-block .lbl    { color: #707070; }
+body.light-mode #info-block .real-tag { color: #b01818; }
+body.light-mode #info-block .virt-tag { color: #6818a8; }
+body.light-mode #state-label        { color: #707070; }
+body.light-mode #state-text         { color: #1a56d6; }
 </style>
 </head>
 
@@ -223,6 +293,40 @@ input[type=range]::-moz-range-thumb {
     </div>
 
     <hr>
+    <div class="section">DISPLAY</div>
+
+    <button id="theme-btn" class="toggle-btn">Light Mode</button>
+
+    <div class="section">VISIBILITY</div>
+    <div class="toggle-row">
+      <button class="toggle-btn vis-btn active" data-ray="0">Ray 1</button>
+      <button class="toggle-btn vis-btn active" data-ray="1">Ray 2</button>
+      <button class="toggle-btn vis-btn active" data-ray="2">Ray 3</button>
+    </div>
+    <div class="toggle-row">
+      <button class="toggle-btn vis-btn active" data-vis="fc">F / C</button>
+      <button class="toggle-btn vis-btn active" data-vis="hatch">Hatch</button>
+    </div>
+
+    <div class="section">THICKNESS</div>
+    <div class="ctrl">
+      <label>
+        <span class="name">Rays</span>
+        <span class="range">0.5 – 4</span>
+        <span class="val" id="ray-lw-val">1.5</span>
+      </label>
+      <input type="range" id="ray-lw" min="0.5" max="4" value="1.5" step="0.5">
+    </div>
+    <div class="ctrl">
+      <label>
+        <span class="name">Mirror</span>
+        <span class="range">1 – 6</span>
+        <span class="val" id="mirror-lw-val">3.0</span>
+      </label>
+      <input type="range" id="mirror-lw" min="1" max="6" value="3" step="0.5">
+    </div>
+
+    <hr>
     <div class="section">IMAGE PROPERTIES</div>
     <div id="info-block"></div>
 
@@ -242,23 +346,63 @@ input[type=range]::-moz-range-thumb {
 <script>
 'use strict';
 
-// ── Constants ────────────────────────────────────────────────────────────
-const ACCENT   = '#7eb8f7';
-const DIM      = '#505570';
-const RAY_COLS = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
-const OBJ_CLR  = '#7eb8f7';
-const IMG_REAL = '#f07878';
-const IMG_VIRT = '#c084fc';
-const MIRROR_C = '#8899bb';
-const AXIS_CLR = 'rgba(255,255,255,0.15)';
-const GRID_CLR = 'rgba(255,255,255,0.04)';
-const BG       = '#07080f';
+// ── Settings state ───────────────────────────────────────────────────────
+const settings = {
+  lightMode: false,
+  showRay: [true, true, true],
+  showFC: true,
+  showHatch: true,
+  rayLW: 1.5,
+  mirrorLW: 3.0,
+};
 
-// ── State ────────────────────────────────────────────────────────────────
+// ── Color themes ─────────────────────────────────────────────────────────
+function getColors() {
+  if (settings.lightMode) {
+    return {
+      BG:         '#ffffff',
+      PAGBG:      '#ffffff',
+      ACCENT:     '#1a56d6',
+      DIM:        '#909090',
+      RAY_COLS:   ['#c42020', '#0a7a6e', '#a06400'],
+      OBJ_CLR:    '#1a56d6',
+      IMG_REAL:   '#b81818',
+      IMG_VIRT:   '#7818b8',
+      MIRROR_C:   '#3a5080',
+      AXIS_CLR:   'rgba(0,0,0,0.15)',
+      BORDER:     '#cccccc',
+      TICK_CLR:   '#606060',
+      TICK_STROKE:'#cccccc',
+      LEGEND_CLR: '#303030',
+      TITLE_CLR:  '#1a56d6',
+    };
+  }
+  return {
+    BG:         '#07080f',
+    PAGBG:      '#0f1017',
+    ACCENT:     '#7eb8f7',
+    DIM:        '#505570',
+    RAY_COLS:   ['#ff6b6b', '#4ecdc4', '#ffe66d'],
+    OBJ_CLR:    '#7eb8f7',
+    IMG_REAL:   '#f07878',
+    IMG_VIRT:   '#c084fc',
+    MIRROR_C:   '#8899bb',
+    AXIS_CLR:   'rgba(255,255,255,0.15)',
+    BORDER:     '#2a2d4a',
+    TICK_CLR:   '#707090',
+    TICK_STROKE:'#3a3a5a',
+    LEGEND_CLR: '#a0a8c0',
+    TITLE_CLR:  '#7eb8f7',
+  };
+}
+
+let C = getColors(); // current colors, refreshed at start of render()
+
+// ── App state ────────────────────────────────────────────────────────────
 let mirrorType = 'concave';
 
-const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d');
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d');
 const doSlider = document.getElementById('do-slider');
 const hoSlider = document.getElementById('ho-slider');
 const fSlider  = document.getElementById('f-slider');
@@ -280,7 +424,6 @@ function computeImage(dObj, f, type) {
 
 // ── Drawing helpers ──────────────────────────────────────────────────────
 
-// Mapping from world coords to canvas pixels
 let wxMin, wxMax, wyMin, wyMax, pxL, pxR, pyT, pyB;
 
 function toCanvasX(wx) { return pxL + (wx - wxMin) / (wxMax - wxMin) * (pxR - pxL); }
@@ -299,19 +442,19 @@ function drawLine(x0, y0, x1, y1, color, lw, dash) {
 }
 
 function drawArrow(x, y0, y1, color, dashed) {
-  const cx = toCanvasX(x);
+  const cx  = toCanvasX(x);
   const cy0 = toCanvasY(y0);
   const cy1 = toCanvasY(y1);
-  const dy = cy1 - cy0;
+  const dy  = cy1 - cy0;
   if (Math.abs(dy) < 2) return;
 
+  const lw = settings.rayLW + 1;
   ctx.save();
   ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = 2.5;
+  ctx.fillStyle   = color;
+  ctx.lineWidth   = lw;
   if (dashed) ctx.setLineDash([6, 4]);
 
-  // Shaft
   const headLen = Math.min(10, Math.abs(dy) * 0.3);
   const dir = dy > 0 ? 1 : -1;
   ctx.beginPath();
@@ -319,12 +462,12 @@ function drawArrow(x, y0, y1, color, dashed) {
   ctx.lineTo(cx, cy1 - dir * headLen);
   ctx.stroke();
 
-  // Arrowhead
   ctx.setLineDash([]);
+  const hw = Math.max(4, lw * 1.8);
   ctx.beginPath();
   ctx.moveTo(cx, cy1);
-  ctx.lineTo(cx - 5, cy1 - dir * headLen);
-  ctx.lineTo(cx + 5, cy1 - dir * headLen);
+  ctx.lineTo(cx - hw, cy1 - dir * headLen);
+  ctx.lineTo(cx + hw, cy1 - dir * headLen);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
@@ -332,9 +475,9 @@ function drawArrow(x, y0, y1, color, dashed) {
 
 function drawText(wx, wy, text, color, size, align, baseline) {
   ctx.save();
-  ctx.fillStyle = color || '#c0c8e0';
-  ctx.font = `${size || 11}px monospace`;
-  ctx.textAlign = align || 'center';
+  ctx.fillStyle    = color || '#c0c8e0';
+  ctx.font         = `${size || 11}px monospace`;
+  ctx.textAlign    = align    || 'center';
   ctx.textBaseline = baseline || 'top';
   ctx.fillText(text, toCanvasX(wx), toCanvasY(wy));
   ctx.restore();
@@ -354,190 +497,187 @@ function drawDot(wx, wy, color, radius) {
 function drawMirror(f, type, halfH) {
   const N = 120;
   ctx.save();
-  ctx.strokeStyle = MIRROR_C;
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = C.MIRROR_C;
+  ctx.lineWidth   = settings.mirrorLW;
   ctx.beginPath();
 
   for (let i = 0; i <= N; i++) {
     const y = -halfH + (2 * halfH * i) / N;
     let x = 0;
     if (type !== 'plane') {
-      const R = 2 * f;
+      const R  = 2 * f;
       const yc = Math.min(Math.abs(y), R - 0.01);
       const sag = R - Math.sqrt(R * R - yc * yc);
       x = type === 'concave' ? sag : -sag;
     }
     const cx = toCanvasX(x), cy = toCanvasY(y);
     if (i === 0) ctx.moveTo(cx, cy);
-    else ctx.lineTo(cx, cy);
+    else         ctx.lineTo(cx, cy);
   }
   ctx.stroke();
 
-  // Hatch marks on non-reflecting side
-  ctx.strokeStyle = MIRROR_C;
-  ctx.lineWidth = 0.7;
-  ctx.globalAlpha = 0.4;
-  const nHatch = 14;
-  for (let i = 0; i <= nHatch; i++) {
-    const y = -halfH + (2 * halfH * i) / nHatch;
-    let mx = 0;
-    if (type !== 'plane') {
-      const R = 2 * f;
-      const yc = Math.min(Math.abs(y), R - 0.01);
-      const sag = R - Math.sqrt(R * R - yc * yc);
-      mx = type === 'concave' ? sag : -sag;
+  if (settings.showHatch) {
+    ctx.strokeStyle  = C.MIRROR_C;
+    ctx.lineWidth    = 0.7;
+    ctx.globalAlpha  = 0.4;
+    const nHatch = 14;
+    for (let i = 0; i <= nHatch; i++) {
+      const y = -halfH + (2 * halfH * i) / nHatch;
+      let mx = 0;
+      if (type !== 'plane') {
+        const R  = 2 * f;
+        const yc = Math.min(Math.abs(y), R - 0.01);
+        const sag = R - Math.sqrt(R * R - yc * yc);
+        mx = type === 'concave' ? sag : -sag;
+      }
+      const hLen = 0.4;
+      if (type === 'convex') {
+        drawLine(mx - hLen, y - hLen * 0.5, mx, y + hLen * 0.5, C.MIRROR_C, 0.7);
+      } else {
+        drawLine(mx, y - hLen * 0.5, mx + hLen, y + hLen * 0.5, C.MIRROR_C, 0.7);
+      }
     }
-    const hLen = 0.4;
-    if (type === 'convex') {
-      drawLine(mx - hLen, y - hLen * 0.5, mx, y + hLen * 0.5, MIRROR_C, 0.7);
-    } else {
-      drawLine(mx, y - hLen * 0.5, mx + hLen, y + hLen * 0.5, MIRROR_C, 0.7);
-    }
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
 // ── Rays ─────────────────────────────────────────────────────────────────
 
 function drawRaysCurved(dObj, ho, f, di, hi, type) {
-  const xObj = -dObj;
+  const xObj      = -dObj;
   const isConcave = type === 'concave';
-  const fPos = f;  // always positive magnitude
-  const xF = isConcave ? -fPos : fPos;
-  const xC = isConcave ? -2 * fPos : 2 * fPos;
-  const atFocal = Math.abs(dObj - fPos) < 0.15 && isConcave;
-  const extLen = Math.max(dObj, fPos) * 2.5;
+  const fPos      = f;
+  const xF        = isConcave ? -fPos : fPos;
+  const xC        = isConcave ? -2 * fPos : 2 * fPos;
+  const atFocal   = Math.abs(dObj - fPos) < 0.15 && isConcave;
+  const extLen    = Math.max(dObj, fPos) * 2.5;
+  const lw        = settings.rayLW;
+  const lwd       = [5, 4]; // dash pattern
 
   // ── Ray 1: Parallel ray ────────────────────────────────────────────
-  // Incoming: horizontal from tip to mirror
-  drawLine(xObj, ho, 0, ho, RAY_COLS[0], 1.5);
+  if (settings.showRay[0]) {
+    drawLine(xObj, ho, 0, ho, C.RAY_COLS[0], lw);
 
-  if (isConcave) {
-    if (atFocal) {
-      // Reflects parallel
-      drawLine(0, ho, xObj - 5, ho, RAY_COLS[0], 1.5);
+    if (isConcave) {
+      if (atFocal) {
+        drawLine(0, ho, xObj - 5, ho, C.RAY_COLS[0], lw);
+      } else {
+        const dx = xF, dy = -ho;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const t = extLen / len;
+        drawLine(0, ho, dx * t, ho + dy * t, C.RAY_COLS[0], lw);
+        if (dObj < fPos) {
+          drawLine(0, ho, -dx * t * 0.5, ho - dy * t * 0.5, C.RAY_COLS[0], lw * 0.7, lwd);
+        }
+      }
     } else {
-      // Through F
-      const dx = xF, dy = -ho;
+      const dx = -xF, dy = ho;
       const len = Math.sqrt(dx * dx + dy * dy);
       const t = extLen / len;
-      drawLine(0, ho, dx * t, ho + dy * t, RAY_COLS[0], 1.5);
-
-      // If virtual image (do < f), dashed extension behind mirror
-      if (dObj < fPos) {
-        drawLine(0, ho, -dx * t * 0.5, ho - dy * t * 0.5, RAY_COLS[0], 1, [5, 4]);
-      }
+      drawLine(0, ho, dx * t, ho + dy * t, C.RAY_COLS[0], lw);
+      drawLine(0, ho, xF, 0, C.RAY_COLS[0], lw * 0.7, lwd);
     }
-  } else {
-    // Convex: diverge as if from virtual F
-    const dx = -xF, dy = ho;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const t = extLen / len;
-    drawLine(0, ho, dx * t, ho + dy * t, RAY_COLS[0], 1.5);
-    // Dashed to virtual F
-    drawLine(0, ho, xF, 0, RAY_COLS[0], 1, [5, 4]);
   }
 
   // ── Ray 2: Focal ray ──────────────────────────────────────────────
-  if (isConcave) {
-    // Through F to mirror
-    const dx_tf = xF - xObj;
-    const dy_tf = -ho;
-    let yMirror = ho;
-    if (Math.abs(dx_tf) > 0.01) {
-      const t = (0 - xObj) / dx_tf;
-      yMirror = ho + dy_tf * t;
-    }
-    drawLine(xObj, ho, 0, yMirror, RAY_COLS[1], 1.5);
-
-    if (atFocal) {
-      // Object at F → special: ray from tip goes to mirror and reflects…
-      // but the "focal ray" from F just goes horizontal
-      drawLine(0, yMirror, xObj - 5, yMirror, RAY_COLS[1], 1.5);
-    } else {
-      // Reflects parallel
-      drawLine(0, yMirror, xObj - extLen, yMirror, RAY_COLS[1], 1.5);
-
-      if (dObj < fPos) {
-        // Dashed extension behind mirror
-        drawLine(0, yMirror, extLen * 0.6, yMirror, RAY_COLS[1], 1, [5, 4]);
+  if (settings.showRay[1]) {
+    if (isConcave) {
+      const dx_tf = xF - xObj;
+      const dy_tf = -ho;
+      let yMirror = ho;
+      if (Math.abs(dx_tf) > 0.01) {
+        const t = (0 - xObj) / dx_tf;
+        yMirror = ho + dy_tf * t;
       }
+      drawLine(xObj, ho, 0, yMirror, C.RAY_COLS[1], lw);
+      if (atFocal) {
+        drawLine(0, yMirror, xObj - 5, yMirror, C.RAY_COLS[1], lw);
+      } else {
+        drawLine(0, yMirror, xObj - extLen, yMirror, C.RAY_COLS[1], lw);
+        if (dObj < fPos) {
+          drawLine(0, yMirror, extLen * 0.6, yMirror, C.RAY_COLS[1], lw * 0.7, lwd);
+        }
+      }
+    } else {
+      const dx_tf = xF - xObj;
+      const dy_tf = -ho;
+      let yMirror = ho;
+      if (Math.abs(dx_tf) > 0.01) {
+        const t = (0 - xObj) / dx_tf;
+        yMirror = ho + dy_tf * t;
+      }
+      drawLine(xObj, ho, 0, yMirror, C.RAY_COLS[1], lw);
+      drawLine(0, yMirror, -(dObj + extLen * 0.5), yMirror, C.RAY_COLS[1], lw);
+      drawLine(0, yMirror, xF, 0, C.RAY_COLS[1], lw * 0.7, lwd);
     }
-  } else {
-    // Convex: aimed at virtual F
-    const dx_tf = xF - xObj;
-    const dy_tf = -ho;
-    let yMirror = ho;
-    if (Math.abs(dx_tf) > 0.01) {
-      const t = (0 - xObj) / dx_tf;
-      yMirror = ho + dy_tf * t;
-    }
-    drawLine(xObj, ho, 0, yMirror, RAY_COLS[1], 1.5);
-    // Reflects parallel
-    drawLine(0, yMirror, -(dObj + extLen * 0.5), yMirror, RAY_COLS[1], 1.5);
-    // Dashed to virtual F
-    drawLine(0, yMirror, xF, 0, RAY_COLS[1], 1, [5, 4]);
   }
 
   // ── Ray 3: Centre ray (through C) ─────────────────────────────────
-  const dx_tc = xC - xObj;
-  const dy_tc = -ho;
-  let yMirrorC = ho;
-  if (Math.abs(dx_tc) > 0.01) {
-    const t = (0 - xObj) / dx_tc;
-    yMirrorC = ho + dy_tc * t;
-  }
-  drawLine(xObj, ho, 0, yMirrorC, RAY_COLS[2], 1.5);
+  if (settings.showRay[2]) {
+    const dx_tc = xC - xObj;
+    const dy_tc = -ho;
+    let yMirrorC = ho;
+    if (Math.abs(dx_tc) > 0.01) {
+      const t = (0 - xObj) / dx_tc;
+      yMirrorC = ho + dy_tc * t;
+    }
+    drawLine(xObj, ho, 0, yMirrorC, C.RAY_COLS[2], lw);
 
-  // Reflects back on itself
-  const dxBack = xObj;
-  const dyBack = ho - yMirrorC;
-  const lenBack = Math.sqrt(dxBack * dxBack + dyBack * dyBack);
-  if (lenBack > 0.01) {
-    const tb = extLen / lenBack;
-    drawLine(0, yMirrorC, dxBack * tb, yMirrorC + dyBack * tb, RAY_COLS[2], 1.5);
-  }
-
-  if (!isConcave) {
-    // Dashed to virtual C
-    drawLine(0, yMirrorC, xC, 0, RAY_COLS[2], 1, [5, 4]);
-  } else if (dObj < fPos && !atFocal) {
-    // Concave virtual: dashed extension behind mirror
+    const dxBack = xObj;
+    const dyBack = ho - yMirrorC;
+    const lenBack = Math.sqrt(dxBack * dxBack + dyBack * dyBack);
     if (lenBack > 0.01) {
-      const tb2 = extLen * 0.4 / lenBack;
-      drawLine(0, yMirrorC, -dxBack * tb2, yMirrorC - dyBack * tb2, RAY_COLS[2], 1, [5, 4]);
+      const tb = extLen / lenBack;
+      drawLine(0, yMirrorC, dxBack * tb, yMirrorC + dyBack * tb, C.RAY_COLS[2], lw);
+    }
+
+    if (!isConcave) {
+      drawLine(0, yMirrorC, xC, 0, C.RAY_COLS[2], lw * 0.7, lwd);
+    } else if (dObj < fPos && !atFocal) {
+      if (lenBack > 0.01) {
+        const tb2 = extLen * 0.4 / lenBack;
+        drawLine(0, yMirrorC, -dxBack * tb2, yMirrorC - dyBack * tb2, C.RAY_COLS[2], lw * 0.7, lwd);
+      }
     }
   }
 }
 
 function drawRaysPlane(dObj, ho) {
   const xObj = -dObj;
-  const xImg = dObj;
+  const xImg =  dObj;
+  const lw   = settings.rayLW;
+  const lwd  = [5, 4];
 
-  // Ray 1: perpendicular (horizontal at tip height)
-  drawLine(xObj, ho, 0, ho, RAY_COLS[0], 1.5);
-  drawLine(0, ho, xObj - 3, ho, RAY_COLS[0], 1.5);
-  drawLine(0, ho, xImg, ho, RAY_COLS[0], 1, [5, 4]);
+  // Ray 1: perpendicular
+  if (settings.showRay[0]) {
+    drawLine(xObj, ho, 0, ho, C.RAY_COLS[0], lw);
+    drawLine(0, ho, xObj - 3, ho, C.RAY_COLS[0], lw);
+    drawLine(0, ho, xImg, ho, C.RAY_COLS[0], lw * 0.7, lwd);
+  }
 
-  // Ray 2: angled to mirror at axis
-  drawLine(xObj, ho, 0, 0, RAY_COLS[1], 1.5);
-  drawLine(0, 0, xObj - 3, -ho, RAY_COLS[1], 1.5);
-  drawLine(0, 0, xImg, ho, RAY_COLS[1], 1, [5, 4]);
+  // Ray 2: through axis
+  if (settings.showRay[1]) {
+    drawLine(xObj, ho, 0, 0, C.RAY_COLS[1], lw);
+    drawLine(0, 0, xObj - 3, -ho, C.RAY_COLS[1], lw);
+    drawLine(0, 0, xImg, ho, C.RAY_COLS[1], lw * 0.7, lwd);
+  }
 
-  // Ray 3: angled to mirror at mid-height
-  const yHit = ho * 0.5;
-  drawLine(xObj, ho, 0, yHit, RAY_COLS[2], 1.5);
-  const dyIn = yHit - ho;
-  const dyOut = -dyIn;
-  const t = 2.5;
-  drawLine(0, yHit, -dObj * t, yHit + dyOut * t, RAY_COLS[2], 1.5);
-  drawLine(0, yHit, xImg, ho, RAY_COLS[2], 1, [5, 4]);
+  // Ray 3: angled to mid-height
+  if (settings.showRay[2]) {
+    const yHit = ho * 0.5;
+    drawLine(xObj, ho, 0, yHit, C.RAY_COLS[2], lw);
+    const dyOut = -(yHit - ho);
+    drawLine(0, yHit, -dObj * 2.5, yHit + dyOut * 2.5, C.RAY_COLS[2], lw);
+    drawLine(0, yHit, xImg, ho, C.RAY_COLS[2], lw * 0.7, lwd);
+  }
 }
 
 // ── Main render ──────────────────────────────────────────────────────────
 
 function render() {
+  C = getColors();
+
   const W = canvas.width, H = canvas.height;
   const ML = 54, MR = 20, MT = 30, MB = 30;
 
@@ -549,12 +689,11 @@ function render() {
   const f    = +fSlider.value;
 
   const img = computeImage(dObj, f, mirrorType);
-  const di = img.di;
-  const M  = img.M;
-  const hi = Math.abs(di) === Infinity ? 0 : M * ho;
+  const di  = img.di;
+  const M   = img.M;
+  const hi  = Math.abs(di) === Infinity ? 0 : M * ho;
 
-  // Determine world bounds
-  const xObj = -dObj;
+  const xObj    = -dObj;
   const mirrorH = ho * 1.8;
 
   let xImgWorld = null;
@@ -564,7 +703,6 @@ function render() {
     xImgWorld = di > 0 ? -di : Math.abs(di);
   }
 
-  const fSigned = mirrorType === 'concave' ? f : -f;
   const xF = mirrorType === 'concave' ? -f : f;
   const xC = mirrorType === 'concave' ? -2 * f : 2 * f;
 
@@ -583,41 +721,34 @@ function render() {
   }
 
   const yBound = Math.max(Math.abs(ho), Math.abs(hi), mirrorH) + 2;
-  // Make symmetric and a bit wider
   const xRange = xMax - xMin;
   const yRange = 2 * yBound;
-  // Maintain aspect ratio — use the wider of the two
   const aspect = (pxR - pxL) / (pyB - pyT);
   if (xRange / yRange > aspect) {
-    // x-limited
     wxMin = xMin; wxMax = xMax;
-    const mid = 0;
     const halfY = xRange / aspect / 2;
-    wyMin = mid - halfY; wyMax = mid + halfY;
+    wyMin = -halfY; wyMax = halfY;
   } else {
-    // y-limited
     wyMin = -yBound; wyMax = yBound;
-    const mid = (xMin + xMax) / 2;
+    const mid  = (xMin + xMax) / 2;
     const halfX = yRange * aspect / 2;
     wxMin = mid - halfX; wxMax = mid + halfX;
   }
 
   // ── Background ─────────────────────────────────────────────────────
-  ctx.fillStyle = '#0f1017';
+  ctx.fillStyle = C.PAGBG;
   ctx.fillRect(0, 0, W, H);
 
-  // Plot area background
-  ctx.fillStyle = BG;
+  ctx.fillStyle = C.BG;
   ctx.fillRect(pxL, pyT, pxR - pxL, pyB - pyT);
 
-  // Plot border
-  ctx.strokeStyle = '#2a2d4a';
+  ctx.strokeStyle = C.BORDER;
   ctx.lineWidth = 1;
   ctx.strokeRect(pxL, pyT, pxR - pxL, pyB - pyT);
 
   // ── Principal axis ─────────────────────────────────────────────────
   ctx.save();
-  ctx.strokeStyle = AXIS_CLR;
+  ctx.strokeStyle = C.AXIS_CLR;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pxL, toCanvasY(0));
@@ -629,17 +760,17 @@ function render() {
   drawMirror(f, mirrorType, mirrorH);
 
   // ── F and C markers ────────────────────────────────────────────────
-  if (mirrorType !== 'plane') {
-    drawDot(xF, 0, ACCENT, 5);
-    drawText(xF, -yBound * 0.12, 'F', ACCENT, 12, 'center', 'top');
-    drawDot(xC, 0, DIM, 4);
-    drawText(xC, -yBound * 0.12, 'C', DIM, 12, 'center', 'top');
+  if (mirrorType !== 'plane' && settings.showFC) {
+    drawDot(xF, 0, C.ACCENT, 5);
+    drawText(xF, -yBound * 0.12, 'F', C.ACCENT, 12, 'center', 'top');
+    drawDot(xC, 0, C.DIM, 4);
+    drawText(xC, -yBound * 0.12, 'C', C.DIM, 12, 'center', 'top');
   }
 
   // ── Object arrow ───────────────────────────────────────────────────
-  drawArrow(xObj, 0, ho, OBJ_CLR, false);
-  drawDot(xObj, 0, OBJ_CLR, 3);
-  drawText(xObj, ho + yBound * 0.06, 'Object', OBJ_CLR, 10, 'center', 'bottom');
+  drawArrow(xObj, 0, ho, C.OBJ_CLR, false);
+  drawDot(xObj, 0, C.OBJ_CLR, 3);
+  drawText(xObj, ho + yBound * 0.06, 'Object', C.OBJ_CLR, 10, 'center', 'bottom');
 
   // ── Rays ───────────────────────────────────────────────────────────
   if (mirrorType === 'plane') {
@@ -651,32 +782,31 @@ function render() {
   // ── Image arrow ────────────────────────────────────────────────────
   if (xImgWorld !== null && Math.abs(di) !== Infinity) {
     const isVirtual = !img.real;
-    const clr = isVirtual ? IMG_VIRT : IMG_REAL;
+    const clr = isVirtual ? C.IMG_VIRT : C.IMG_REAL;
     drawArrow(xImgWorld, 0, hi, clr, isVirtual);
     drawDot(xImgWorld, 0, clr, 3);
     const label = isVirtual ? 'Virtual image' : 'Real image';
-    const yOff = hi >= 0 ? yBound * 0.06 : -yBound * 0.06;
+    const yOff  = hi >= 0 ? yBound * 0.06 : -yBound * 0.06;
     const vBase = hi >= 0 ? 'bottom' : 'top';
     drawText(xImgWorld, hi + yOff, label, clr, 9, 'center', vBase);
   }
 
   // ── Title ──────────────────────────────────────────────────────────
   const typeLabel = mirrorType.charAt(0).toUpperCase() + mirrorType.slice(1);
-  ctx.textAlign = 'center';
+  ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 13px monospace';
-  ctx.fillStyle = ACCENT;
-  ctx.fillText(`${typeLabel} Mirror \u2014 Ray Diagram`, (pxL + pxR) / 2, MT / 2);
+  ctx.font         = 'bold 13px monospace';
+  ctx.fillStyle    = C.TITLE_CLR;
+  ctx.fillText(`${typeLabel} Mirror — Ray Diagram`, (pxL + pxR) / 2, MT / 2);
 
   // ── Axis tick labels ───────────────────────────────────────────────
   const nTicks = 6;
-  ctx.fillStyle = '#707090';
-  ctx.strokeStyle = '#3a3a5a';
+  ctx.fillStyle   = C.TICK_CLR;
+  ctx.strokeStyle = C.TICK_STROKE;
   ctx.lineWidth = 1;
   ctx.font = '10px monospace';
 
-  // X axis
-  ctx.textAlign = 'center';
+  ctx.textAlign    = 'center';
   ctx.textBaseline = 'top';
   for (let i = 0; i <= nTicks; i++) {
     const frac = i / nTicks;
@@ -686,8 +816,7 @@ function render() {
     ctx.fillText(wx.toFixed(1), cx, pyB + 5);
   }
 
-  // Y axis
-  ctx.textAlign = 'right';
+  ctx.textAlign    = 'right';
   ctx.textBaseline = 'middle';
   for (let i = 0; i <= nTicks; i++) {
     const frac = i / nTicks;
@@ -703,15 +832,16 @@ function render() {
     : ['Parallel', 'Focal', 'Centre'];
   const legX = pxR - 110;
   const legY = pyT + 14;
-  ctx.font = '10px monospace';
-  ctx.textAlign = 'left';
+  ctx.font         = '10px monospace';
+  ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
   for (let i = 0; i < 3; i++) {
+    if (!settings.showRay[i]) continue;
     const y = legY + i * 16;
-    ctx.strokeStyle = RAY_COLS[i];
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = C.RAY_COLS[i];
+    ctx.lineWidth   = 2;
     ctx.beginPath(); ctx.moveTo(legX, y); ctx.lineTo(legX + 18, y); ctx.stroke();
-    ctx.fillStyle = '#a0a8c0';
+    ctx.fillStyle = C.LEGEND_CLR;
     ctx.fillText(legendLabels[i], legX + 22, y);
   }
 
@@ -728,40 +858,47 @@ function updateInfo(img, type, dObj, f) {
 
   let html;
   if (Math.abs(di) === Infinity) {
-    html = `<span class="lbl">Type:</span>  \u2014<br>
-            <span class="lbl">Orient:</span>  \u2014<br>
-            <span class="lbl">Size:</span>  \u2014<br>
-            <span class="lbl">M:</span>  \u221e<br>
-            <span class="lbl">d\u1d62:</span>  \u221e<br><br>
+    html = `<span class="lbl">Type:</span>  —<br>
+            <span class="lbl">Orient:</span>  —<br>
+            <span class="lbl">Size:</span>  —<br>
+            <span class="lbl">M:</span>  ∞<br>
+            <span class="lbl">dᵢ:</span>  ∞<br><br>
             Object at focal point<br>Image at infinity`;
   } else {
     const typTag = img.real
       ? `<span class="real-tag">Real</span>`
       : `<span class="virt-tag">Virtual</span>`;
     const orient = img.inverted ? 'Inverted' : 'Upright';
-    const absM = Math.abs(M);
-    const size = Math.abs(absM - 1) < 0.05 ? 'Same size'
-               : absM > 1 ? 'Magnified' : 'Diminished';
+    const absM   = Math.abs(M);
+    const size   = Math.abs(absM - 1) < 0.05 ? 'Same size'
+                 : absM > 1 ? 'Magnified' : 'Diminished';
 
     html = `<span class="lbl">Type:</span>  ${typTag}<br>
             <span class="lbl">Orient:</span>  ${orient}<br>
             <span class="lbl">Size:</span>  ${size}<br>
             <span class="lbl">M:</span>  ${M >= 0 ? '+' : ''}${M.toFixed(2)}<br>
-            <span class="lbl">d\u1d62:</span>  ${di >= 0 ? '+' : ''}${di.toFixed(1)}`;
+            <span class="lbl">dᵢ:</span>  ${di >= 0 ? '+' : ''}${di.toFixed(1)}`;
   }
   el.innerHTML = html;
 
-  // Equation readout
   const stateEl = document.getElementById('state-text');
   if (type === 'plane') {
-    stateEl.textContent = `d\u1d62 = d\u2092 = ${dObj.toFixed(1)}`;
+    stateEl.textContent = `dᵢ = dₒ = ${dObj.toFixed(1)}`;
   } else if (Math.abs(di) === Infinity) {
-    stateEl.textContent = `1/f = 1/d\u2092 + 1/\u221e`;
+    stateEl.textContent = `1/f = 1/dₒ + 1/∞`;
   } else {
     const fSigned = type === 'concave' ? f : -f;
     stateEl.innerHTML = `1/d<sub>o</sub> + 1/d<sub>i</sub> = 1/f<br>` +
       `${(1/dObj).toFixed(3)} + ${(1/di).toFixed(3)} = ${(1/fSigned).toFixed(3)}`;
   }
+}
+
+// ── Theme application ────────────────────────────────────────────────────
+
+function applyTheme() {
+  document.body.classList.toggle('light-mode', settings.lightMode);
+  document.getElementById('theme-btn').classList.toggle('active', settings.lightMode);
+  render();
 }
 
 // ── Control wiring ───────────────────────────────────────────────────────
@@ -770,12 +907,10 @@ doSlider.addEventListener('input', () => {
   document.getElementById('do-val').textContent = parseFloat(doSlider.value).toFixed(1);
   render();
 });
-
 hoSlider.addEventListener('input', () => {
   document.getElementById('ho-val').textContent = parseFloat(hoSlider.value).toFixed(1);
   render();
 });
-
 fSlider.addEventListener('input', () => {
   document.getElementById('f-val').textContent = parseFloat(fSlider.value).toFixed(1);
   render();
@@ -790,11 +925,49 @@ document.querySelectorAll('.mirror-btn').forEach(btn => {
   });
 });
 
+// Light mode toggle
+document.getElementById('theme-btn').addEventListener('click', () => {
+  settings.lightMode = !settings.lightMode;
+  applyTheme();
+});
+
+// Visibility toggles
+document.querySelectorAll('.vis-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const rayIdx = btn.dataset.ray;
+    const visKey = btn.dataset.vis;
+    if (rayIdx !== undefined) {
+      const i = +rayIdx;
+      settings.showRay[i] = !settings.showRay[i];
+      btn.classList.toggle('active', settings.showRay[i]);
+    } else if (visKey === 'fc') {
+      settings.showFC = !settings.showFC;
+      btn.classList.toggle('active', settings.showFC);
+    } else if (visKey === 'hatch') {
+      settings.showHatch = !settings.showHatch;
+      btn.classList.toggle('active', settings.showHatch);
+    }
+    render();
+  });
+});
+
+// Thickness sliders
+document.getElementById('ray-lw').addEventListener('input', function() {
+  settings.rayLW = +this.value;
+  document.getElementById('ray-lw-val').textContent = parseFloat(this.value).toFixed(1);
+  render();
+});
+document.getElementById('mirror-lw').addEventListener('input', function() {
+  settings.mirrorLW = +this.value;
+  document.getElementById('mirror-lw-val').textContent = parseFloat(this.value).toFixed(1);
+  render();
+});
+
 // ── Responsive canvas & initial draw ─────────────────────────────────────
 
 function resizeAndRender() {
   const main = document.getElementById('plot-area');
-  const w = main.clientWidth - 40;
+  const w = main.clientWidth  - 40;
   const h = main.clientHeight - 40;
   if (w < 80 || h < 80) return;
   canvas.width  = w;
