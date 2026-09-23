@@ -31,6 +31,9 @@ DOT_R = 0.17
 ROW_GAP = 0.56       # vertical distance between the two dots of a pair
 CAP_W = 2 * DOT_R + 0.18  # width of a pair's capsule
 
+CUE_W = 4.9          # script box: fixed width...
+CUE_LINES = 3        # ...and fixed height, in lines of text
+
 PARITY_COLORS = {"even": EVEN_C, "odd": ODD_C}
 
 
@@ -112,18 +115,28 @@ class ParityScene(Scene):
 
     # ------------------------------------------------------------ script cue
     def script(self, s, wait=0.3):
-        """Bottom-right box quoting the script line this animation matches."""
-        lines = textwrap.wrap(f"“{s}”", 42)
+        """Bottom-right box quoting the script line this animation matches.
+
+        The box is always the same size (easy to mask out in editing); text
+        that doesn't fit in CUE_LINES lines is simply cut off."""
+        inner_w = CUE_W - 0.3
+        lines = []
+        for line in textwrap.wrap(f"“{s}”", 42)[:CUE_LINES]:
+            while line and self.txt(line, fs=17).width > inner_w:
+                line = line[:-1]
+            lines.append(line)
         body = self.txt("\n".join(lines), GREY_A, 17, line_spacing=0.9)
         tag = self.txt("SCRIPT", GREY_B, 12, weight=BOLD)
-        content = VGroup(tag, body).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
-        box = RoundedRectangle(corner_radius=0.08,
-                               width=max(4.9, content.width + 0.3),
-                               height=content.height + 0.26,
+        # size the box for a full CUE_LINES of text, whatever this cue holds
+        full = self.txt("\n".join(["Ag"] * CUE_LINES), fs=17, line_spacing=0.9)
+        box = RoundedRectangle(corner_radius=0.08, width=CUE_W,
+                               height=tag.height + 0.08 + full.height + 0.26,
                                fill_color=PANEL_C, fill_opacity=0.92,
                                stroke_color=GREY_D, stroke_width=2)
-        content.move_to(box).align_to(box, LEFT).shift(RIGHT * 0.15)
-        new = VGroup(box, content).to_corner(DR, buff=0.15)
+        box.to_corner(DR, buff=0.15)
+        tag.move_to(box.get_corner(UL) + [0.15, -0.13, 0], aligned_edge=UL)
+        body.next_to(tag, DOWN, buff=0.08, aligned_edge=LEFT)
+        new = VGroup(box, tag, body)
         if self.cue is None:
             self.play(FadeIn(new), run_time=0.4)
         else:
