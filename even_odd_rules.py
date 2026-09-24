@@ -713,7 +713,9 @@ class EvenOddAddition(ParityScene):
         n7 = self.txt("7", fs=40).move_to(n2)
         chip = self.chip("odd").next_to(n7, RIGHT, buff=0.3)
         note = self.txt("its partner is left alone", GREY_A, 28)
-        note.next_to(A, UP, buff=0.35)
+        # not next_to(A): the removed dot, faded out above the row, still
+        # counts toward A's bounds and would push the note into the heading
+        note.move_to([MAIN_X, DOT_Y + 0.8, 0])
         self.play(ReplacementTransform(n2, n7), FadeIn(chip, scale=0.5),
                   FadeIn(note))
         self.wait(1)
